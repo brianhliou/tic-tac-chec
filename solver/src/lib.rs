@@ -2,6 +2,7 @@ use std::fmt;
 
 pub mod graph;
 pub mod ranking;
+pub mod retrograde;
 
 pub const BOARD_SIDE: u8 = 4;
 pub const BOARD_CELLS: usize = 16;
