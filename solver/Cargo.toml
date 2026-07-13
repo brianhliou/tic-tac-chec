@@ -1,0 +1,18 @@
+[package]
+name = "tic-tac-chec-solver"
+version = "0.1.0"
+edition = "2021"
+description = "Rules engine and strong-solve tooling for the original 4x4 Tic Tac Chec."
+license = "MIT"
+
+[lib]
+name = "tic_tac_chec"
+path = "src/lib.rs"
+
+[[bin]]
+name = "state-space"
+path = "src/bin/state_space.rs"
+
+[profile.release]
+opt-level = 3
+lto = true

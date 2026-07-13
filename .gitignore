@@ -1,0 +1,6 @@
+/solver/target/
+*.tb
+*.ctb
+*.bin
+research/runs/*
+!research/runs/.gitkeep
