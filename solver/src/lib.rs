@@ -1,5 +1,7 @@
 use std::fmt;
 
+pub mod ranking;
+
 pub const BOARD_SIDE: u8 = 4;
 pub const BOARD_CELLS: usize = 16;
 
