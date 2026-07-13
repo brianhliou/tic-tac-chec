@@ -49,6 +49,7 @@ runtime. The researched implementation strategy and benchmark gates are in
 ```sh
 cargo test --manifest-path solver/Cargo.toml
 cargo run --manifest-path solver/Cargo.toml --bin state-space
+cargo run --manifest-path solver/Cargo.toml --release --bin rank_bench -- 10000000
 ```
 
 ## Roadmap

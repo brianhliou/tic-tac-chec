@@ -2,5 +2,6 @@
 *.tb
 *.ctb
 *.bin
-research/runs/*
-!research/runs/.gitkeep
+research/runs/**/*
+!research/runs/**/
+!research/runs/**/summary.md
