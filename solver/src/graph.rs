@@ -18,12 +18,36 @@ use crate::{
 /// always produce different child positions, so no edge de-duplication is
 /// needed by [`for_each_successor`].
 pub fn for_each_legal_move(position: &Position, rules: Rules, mut emit: impl FnMut(Move)) -> usize {
+    visit_legal_moves(position, rules, &mut |action| {
+        emit(action);
+        true
+    })
+}
+
+fn contains_legal_move(position: &Position, rules: Rules, wanted: Move) -> bool {
+    let mut found = false;
+    visit_legal_moves(position, rules, &mut |action| {
+        found = action == wanted;
+        !found
+    });
+    found
+}
+
+/// Visit legal moves until the callback returns `false` and return the number
+/// of moves visited, including the move that stopped iteration.
+fn visit_legal_moves(
+    position: &Position,
+    rules: Rules,
+    emit: &mut impl FnMut(Move) -> bool,
+) -> usize {
     if position.is_terminal() {
         return 0;
     }
 
     let mut count = 0;
-    emit_placements(position, &mut emit, &mut count);
+    if !emit_placements(position, emit, &mut count) {
+        return count;
+    }
     if !position.opening_complete() {
         return count;
     }
@@ -37,7 +61,11 @@ pub fn for_each_legal_move(position: &Position, rules: Rules, mut emit: impl FnM
             continue;
         }
         match piece.kind {
-            PieceKind::Pawn => emit_pawn_moves(position, from, piece, rules, &mut emit, &mut count),
+            PieceKind::Pawn => {
+                if !emit_pawn_moves(position, from, piece, rules, emit, &mut count) {
+                    return count;
+                }
+            }
             PieceKind::Knight => {
                 for (file_delta, rank_delta) in [
                     (1, 2),
@@ -53,34 +81,25 @@ pub fn for_each_legal_move(position: &Position, rules: Rules, mut emit: impl FnM
                         if position
                             .at(to)
                             .is_none_or(|target| target.color != piece.color)
+                            && !push(Move::Move { from, to }, emit, &mut count)
                         {
-                            push(Move::Move { from, to }, &mut emit, &mut count);
+                            return count;
                         }
                     }
                 }
             }
             PieceKind::Bishop => {
                 for direction in [(1, 1), (1, -1), (-1, -1), (-1, 1)] {
-                    emit_slide(
-                        position,
-                        from,
-                        piece.color,
-                        direction,
-                        &mut emit,
-                        &mut count,
-                    );
+                    if !emit_slide(position, from, piece.color, direction, emit, &mut count) {
+                        return count;
+                    }
                 }
             }
             PieceKind::Rook => {
                 for direction in [(1, 0), (0, -1), (-1, 0), (0, 1)] {
-                    emit_slide(
-                        position,
-                        from,
-                        piece.color,
-                        direction,
-                        &mut emit,
-                        &mut count,
-                    );
+                    if !emit_slide(position, from, piece.color, direction, emit, &mut count) {
+                        return count;
+                    }
                 }
             }
         }
@@ -379,11 +398,7 @@ fn validate_predecessor(
     let Some(parent_id) = rank_post_opening(&parent) else {
         return;
     };
-    let mut legal = false;
-    for_each_legal_move(&parent, rules, |candidate| {
-        legal |= candidate == action;
-    });
-    if !legal || parent.play_unchecked(action) != *child {
+    if !contains_legal_move(&parent, rules, action) || parent.play_unchecked(action) != *child {
         return;
     }
 
@@ -391,7 +406,11 @@ fn validate_predecessor(
     emit(parent_id);
 }
 
-fn emit_placements(position: &Position, emit: &mut impl FnMut(Move), count: &mut usize) {
+fn emit_placements(
+    position: &Position,
+    emit: &mut impl FnMut(Move) -> bool,
+    count: &mut usize,
+) -> bool {
     for kind in PieceKind::ALL {
         let piece = Piece {
             color: position.side_to_move(),
@@ -402,11 +421,12 @@ fn emit_placements(position: &Position, emit: &mut impl FnMut(Move), count: &mut
         }
         for index in 0..BOARD_CELLS as u8 {
             let to = square(index);
-            if position.at(to).is_none() {
-                push(Move::Place { piece: kind, to }, emit, count);
+            if position.at(to).is_none() && !push(Move::Place { piece: kind, to }, emit, count) {
+                return false;
             }
         }
     }
+    true
 }
 
 fn emit_pawn_moves(
@@ -414,13 +434,13 @@ fn emit_pawn_moves(
     from: Square,
     piece: Piece,
     rules: Rules,
-    emit: &mut impl FnMut(Move),
+    emit: &mut impl FnMut(Move) -> bool,
     count: &mut usize,
-) {
+) -> bool {
     let travel = direction_delta(position.pawn_direction(piece.color));
     if let Some(to) = offset(from, 0, travel) {
-        if position.at(to).is_none() {
-            push(Move::Move { from, to }, emit, count);
+        if position.at(to).is_none() && !push(Move::Move { from, to }, emit, count) {
+            return false;
         }
     }
 
@@ -429,7 +449,7 @@ fn emit_pawn_moves(
         Color::Black => -1,
     };
     let capture_delta = match rules.returning_pawn_capture {
-        ReturningPawnCapture::OutboundOnly if travel != initial => return,
+        ReturningPawnCapture::OutboundOnly if travel != initial => return true,
         ReturningPawnCapture::OutboundOnly | ReturningPawnCapture::TowardOpponent => initial,
         ReturningPawnCapture::TravelDirection => travel,
     };
@@ -438,11 +458,13 @@ fn emit_pawn_moves(
             if position
                 .at(to)
                 .is_some_and(|target| target.color != piece.color)
+                && !push(Move::Move { from, to }, emit, count)
             {
-                push(Move::Move { from, to }, emit, count);
+                return false;
             }
         }
     }
+    true
 }
 
 fn emit_slide(
@@ -450,26 +472,33 @@ fn emit_slide(
     from: Square,
     color: Color,
     (file_delta, rank_delta): (i8, i8),
-    emit: &mut impl FnMut(Move),
+    emit: &mut impl FnMut(Move) -> bool,
     count: &mut usize,
-) {
+) -> bool {
     let mut cursor = from;
     while let Some(to) = offset(cursor, file_delta, rank_delta) {
         match position.at(to) {
-            None => push(Move::Move { from, to }, emit, count),
+            None => {
+                if !push(Move::Move { from, to }, emit, count) {
+                    return false;
+                }
+            }
             Some(piece) if piece.color != color => {
-                push(Move::Move { from, to }, emit, count);
+                if !push(Move::Move { from, to }, emit, count) {
+                    return false;
+                }
                 break;
             }
             Some(_) => break,
         }
         cursor = to;
     }
+    true
 }
 
-fn push(action: Move, emit: &mut impl FnMut(Move), count: &mut usize) {
+fn push(action: Move, emit: &mut impl FnMut(Move) -> bool, count: &mut usize) -> bool {
     *count += 1;
-    emit(action);
+    emit(action)
 }
 
 fn direction_delta(direction: PawnDirection) -> i8 {
