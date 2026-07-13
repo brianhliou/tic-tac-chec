@@ -107,10 +107,10 @@ pub fn for_each_successor(
 ///
 /// The child ID is decoded in next-player coordinates, then transformed back
 /// to the absolute Black-to-move position produced by a normalized White
-/// parent. Candidate reversal deliberately over-generates pawn directions,
-/// captures, and origins. A candidate is emitted only when the production
-/// forward generator accepts its action and applying that action reconstructs
-/// the exact absolute child.
+/// parent. Candidate reversal uses inverse piece geometry while deliberately
+/// over-generating pawn directions and capture history. A candidate is emitted
+/// only when the production forward generator accepts its action and applying
+/// that action reconstructs the exact absolute child.
 pub fn for_each_predecessor(
     id: PostOpeningId,
     rules: Rules,
@@ -148,13 +148,8 @@ pub fn for_each_predecessor(
             &mut count,
         );
 
-        for from_index in 0..BOARD_CELLS as u8 {
-            let from = square(from_index);
-            if child.at(from).is_some() {
-                continue;
-            }
-
-            for mover_direction in candidate_mover_directions(&child, mover) {
+        for mover_direction in candidate_mover_directions(&child, mover) {
+            for_each_reverse_origin(&child, to, mover, mover_direction, rules, false, |from| {
                 let parent = reverse_move_candidate(
                     &child,
                     mover,
@@ -172,39 +167,134 @@ pub fn for_each_predecessor(
                     &mut emit,
                     &mut count,
                 );
+            });
 
-                for captured_kind in PieceKind::ALL {
-                    let captured = Piece {
-                        color: Color::Black,
-                        kind: captured_kind,
-                    };
-                    if child.piece_square(captured).is_some() {
-                        continue;
-                    }
-                    for captured_direction in candidate_captured_directions(&child, captured_kind) {
-                        let parent = reverse_move_candidate(
-                            &child,
-                            mover,
-                            from,
-                            to,
-                            Some(captured),
-                            mover_direction,
-                            captured_direction,
-                        );
-                        validate_predecessor(
-                            parent,
-                            Move::Move { from, to },
-                            &child,
-                            rules,
-                            &mut emit,
-                            &mut count,
-                        );
-                    }
+            for captured_kind in PieceKind::ALL {
+                let captured = Piece {
+                    color: Color::Black,
+                    kind: captured_kind,
+                };
+                if child.piece_square(captured).is_some() {
+                    continue;
+                }
+                for captured_direction in candidate_captured_directions(&child, captured_kind) {
+                    for_each_reverse_origin(
+                        &child,
+                        to,
+                        mover,
+                        mover_direction,
+                        rules,
+                        true,
+                        |from| {
+                            let parent = reverse_move_candidate(
+                                &child,
+                                mover,
+                                from,
+                                to,
+                                Some(captured),
+                                mover_direction,
+                                captured_direction,
+                            );
+                            validate_predecessor(
+                                parent,
+                                Move::Move { from, to },
+                                &child,
+                                rules,
+                                &mut emit,
+                                &mut count,
+                            );
+                        },
+                    );
                 }
             }
         }
     }
     count
+}
+
+fn for_each_reverse_origin(
+    child: &Position,
+    to: Square,
+    mover: Piece,
+    mover_direction: PawnDirection,
+    rules: Rules,
+    is_capture: bool,
+    mut emit: impl FnMut(Square),
+) {
+    match mover.kind {
+        PieceKind::Pawn => {
+            let travel = direction_delta(mover_direction);
+            let rank_delta = if is_capture {
+                let initial = 1;
+                match rules.returning_pawn_capture {
+                    ReturningPawnCapture::OutboundOnly if travel != initial => return,
+                    ReturningPawnCapture::OutboundOnly | ReturningPawnCapture::TowardOpponent => {
+                        initial
+                    }
+                    ReturningPawnCapture::TravelDirection => travel,
+                }
+            } else {
+                travel
+            };
+            if is_capture {
+                for file_delta in [-1, 1] {
+                    if let Some(from) = offset(to, file_delta, -rank_delta) {
+                        if child.at(from).is_none() {
+                            emit(from);
+                        }
+                    }
+                }
+            } else if let Some(from) = offset(to, 0, -rank_delta) {
+                if child.at(from).is_none() {
+                    emit(from);
+                }
+            }
+        }
+        PieceKind::Knight => {
+            for (file_delta, rank_delta) in [
+                (1, 2),
+                (2, 1),
+                (2, -1),
+                (1, -2),
+                (-1, -2),
+                (-2, -1),
+                (-2, 1),
+                (-1, 2),
+            ] {
+                if let Some(from) = offset(to, file_delta, rank_delta) {
+                    if child.at(from).is_none() {
+                        emit(from);
+                    }
+                }
+            }
+        }
+        PieceKind::Bishop => {
+            for direction in [(1, 1), (1, -1), (-1, -1), (-1, 1)] {
+                emit_reverse_slide(child, to, direction, &mut emit);
+            }
+        }
+        PieceKind::Rook => {
+            for direction in [(1, 0), (0, -1), (-1, 0), (0, 1)] {
+                emit_reverse_slide(child, to, direction, &mut emit);
+            }
+        }
+    }
+}
+
+fn emit_reverse_slide(
+    child: &Position,
+    to: Square,
+    (file_delta, rank_delta): (i8, i8),
+    emit: &mut impl FnMut(Square),
+) {
+    let mut cursor = to;
+    while let Some(from) = offset(cursor, file_delta, rank_delta) {
+        if child.at(from).is_some() {
+            break;
+        }
+        emit(from);
+        cursor = from;
+    }
 }
 
 fn reverse_move_candidate(
