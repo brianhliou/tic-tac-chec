@@ -1,5 +1,6 @@
 use std::fmt;
 
+pub mod graph;
 pub mod ranking;
 
 pub const BOARD_SIDE: u8 = 4;
@@ -259,6 +260,10 @@ impl Position {
             return Err(IllegalMove(action));
         }
 
+        Ok(self.play_unchecked(action))
+    }
+
+    pub(crate) fn play_unchecked(&self, action: Move) -> Self {
         let mover = self.side_to_move;
         let mut next = self.clone();
         match action {
@@ -296,7 +301,7 @@ impl Position {
             next.opening_complete = true;
         }
         next.side_to_move = mover.opponent();
-        Ok(next)
+        next
     }
 
     fn placement_moves(&self) -> Vec<Move> {
