@@ -192,7 +192,7 @@ impl fmt::Display for Move {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Position {
     board: [Option<Piece>; BOARD_CELLS],
     side_to_move: Color,
