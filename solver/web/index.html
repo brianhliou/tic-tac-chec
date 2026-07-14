@@ -9,8 +9,8 @@
   :root {
     --ink:#1f2328; --muted:#6b7280; --line:#e7e7ea; --accent:#d98a2b;
     --win:#2e7d32; --winbg:#eaf4ea; --loss:#c0392b; --lossbg:#fbecea;
-    --draw:#6b7280; --drawbg:#f1f2f4; --board:#f3ead2; --board2:#e7d8b5;
-    --board-line:#9c8856; --select:#f1c76d; --target:rgba(46,125,50,.68);
+    --draw:#6b7280; --drawbg:#f1f2f4; --board:#eeeed2; --board2:#769656;
+    --board-frame:#2a3a2a; --select:#d6af4e; --target:rgba(46,125,50,.76);
   }
   * { box-sizing:border-box; }
   html, body { height:100%; }
@@ -35,7 +35,8 @@
   .tray-label { position:absolute; left:12px; color:#9a8a62; font-size:.66rem; font-weight:700;
                 text-transform:uppercase; letter-spacing:.04em; }
   .hand-piece { width:46px; height:46px; display:grid; place-items:center; border:1px solid #ded7c5;
-                background:#fffdf8; border-radius:9px; font:31px Georgia,serif; cursor:pointer; box-shadow:0 2px 5px rgba(58,37,12,.08); }
+                background:#fffdf8; border-radius:9px; padding:0; cursor:pointer; box-shadow:0 2px 5px rgba(58,37,12,.08); }
+  .hand-piece img { width:100%; height:100%; display:block; pointer-events:none; }
   .hand-piece:hover, .hand-piece.selected { outline:3px solid rgba(217,138,43,.38); }
   .hand-empty { color:#b7ad96; font-size:.78rem; }
   .board-frame { min-height:0; display:grid; grid-template-columns:20px 1fr; grid-template-rows:1fr 20px; gap:7px; place-self:center; width:100%; }
@@ -43,18 +44,18 @@
   .ranks { grid-template-rows:repeat(4,1fr); align-items:center; }
   .files { grid-template-columns:repeat(4,1fr); grid-column:2; align-items:center; }
   .board { grid-column:2; display:grid; grid-template-columns:repeat(4,1fr); aspect-ratio:1;
-           border:3px solid var(--board-line); background:var(--board-line); gap:2px; box-shadow:0 14px 32px rgba(42,34,18,.18); }
+           border:0; border-radius:1.9%; overflow:hidden; background:var(--board-frame); gap:0; box-shadow:0 14px 32px rgba(42,34,18,.18); }
   .square { border:0; border-radius:0; padding:0; position:relative; display:grid; place-items:center;
             background:var(--board); cursor:pointer; min-width:0; min-height:0; }
   .square.alt { background:var(--board2); }
   .square:hover { filter:brightness(1.025); }
   .square.selected { background:var(--select); }
-  .square.target::after { content:""; position:absolute; width:18%; aspect-ratio:1; border-radius:50%; background:var(--target); z-index:1; }
-  .piece { width:76%; height:76%; display:grid; place-items:center; border-radius:14%; z-index:2;
-           font:clamp(42px,9vh,82px) Georgia,serif; line-height:1; user-select:none; }
-  .piece.white { color:#5a3d1d; background:#fffaf0; border:2px solid #b59c69; text-shadow:0 1px #fff; }
-  .piece.black { color:#f4f1e9; background:#3b4149; border:2px solid #20252d; transform:rotate(180deg); }
-  .direction { position:absolute; right:5px; bottom:1px; font:700 14px system-ui; opacity:.7; }
+  .square.target::after { content:""; position:absolute; width:18%; aspect-ratio:1; border-radius:50%; background:var(--target); z-index:3; }
+  .piece { width:100%; height:100%; display:block; position:relative; z-index:2; user-select:none; pointer-events:none; }
+  .piece img { width:100%; height:100%; display:block; }
+  .direction { position:absolute; right:6%; bottom:5%; display:grid; place-items:center; width:22%; aspect-ratio:1;
+               border:1px solid rgba(255,255,255,.9); border-radius:50%; background:rgba(31,35,40,.8); color:#fff;
+               font:700 clamp(11px,1.8vh,17px)/1 system-ui; box-shadow:0 1px 3px rgba(0,0,0,.28); }
 
   .panel { flex:0 0 370px; min-width:300px; display:flex; flex-direction:column; min-height:0;
            border:1px solid var(--line); border-radius:12px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.05); }
@@ -112,10 +113,10 @@
 </main>
 <div class="modal" id="howModal" hidden><article class="modal-card"><button class="modal-close" id="howClose">×</button><h2>Tic Tac Chec, solved</h2><p class="lead">The original 4×4 Dream Green game, played against a complete tablebase.</p><h3>What this is</h3><p>Tic Tac Chec uses one pawn, knight, bishop, and rook per player. Each player places three pieces before movement unlocks; captures return pieces to their owner's hand. Align all four pieces in a row, column, or long diagonal to win.</p><p>Under the canonical original rules, perfect play is a <strong>draw</strong>. This explorer covers 2,462,360,745 normalized post-opening positions plus all 14,236,865 opening positions.</p><h3>How to read it</h3><div class="legend"><span><i class="w"></i>winning</span><span><i class="d"></i>drawing</span><span><i class="l"></i>losing</span></div><p>The verdict describes the player to move. Legal moves are ranked best first. Forced wins choose the shortest line; forced losses choose the longest resistance. Draws have no finite distance. A star marks a remoteness-optimal move.</p><h3>Move notation</h3><p><code>N@c2</code> places a knight on c2; <code>a1-a4</code> moves the piece from a1 to a4. Pawn arrows show current travel direction after reversals.</p><h3>Rules interpretation</h3><p>This table uses travel-direction pawn captures: after reversing at an edge, a pawn's capture diagonals reverse with it. Infinite non-winning play is a draw.</p></article></div>
 <script>
-const glyph={White:{Pawn:'♙',Knight:'♘',Bishop:'♗',Rook:'♖'},Black:{Pawn:'♟',Knight:'♞',Bishop:'♝',Rook:'♜'}};
 const letter={Pawn:'P',Knight:'N',Bishop:'B',Rook:'R'};
 let line=[],cursor=0,data=null,selectedHand=null,selectedSource=null;
 const esc=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pieceImage=(color,piece)=>`<img src="/pieces/cburnett/${color==='White'?'w':'b'}${letter[piece]}.svg" alt="">`;
 const path=()=>line.slice(0,cursor).map(step=>step.index);
 
 async function load(){selectedHand=null;selectedSource=null;document.getElementById('moves').innerHTML='<div class="loading">Probing…</div>';try{const response=await fetch(`/api/probe?path=${path().join(',')}`);const next=await response.json();if(!response.ok)throw new Error(next.error||'Probe failed');data=next;render()}catch(error){document.getElementById('moves').innerHTML=`<div class="error">${esc(error.message)}</div>`}}
@@ -125,10 +126,10 @@ function sortedMoves(){return [...data.moves].sort((a,b)=>outcomeRank(a.result)-
 function render(){renderVerdict();renderHands();renderBoard();renderHistory();renderMoves();document.getElementById('positionId').textContent=data.position;document.getElementById('reset').disabled=cursor===0;document.getElementById('back').disabled=cursor===0;document.getElementById('fwd').disabled=cursor===line.length;}
 function renderVerdict(){const v=document.getElementById('verdict'),distance=data.distance==null?'no finite distance':`${data.distance} ${data.distance===1?'ply':'plies'}`;v.className=`verdict ${data.value}`;v.innerHTML=`${esc(data.sideToMove)} to move: ${esc(data.value)} <small>${distance}</small>`}
 function renderHands(){renderHand('blackHand','Black');renderHand('whiteHand','White')}
-function renderHand(id,color){const el=document.getElementById(id),active=data.sideToMove===color;el.className=`tray ${active?'active':''}`;const pieces=data.hands[color];el.innerHTML=`<span class="tray-label">${color} hand</span>${pieces.length?pieces.map(piece=>`<button class="hand-piece ${selectedHand===piece?'selected':''}" data-piece="${piece}">${glyph[color][piece]}</button>`).join(''):'<span class="hand-empty">No pieces in hand</span>'}`;el.querySelectorAll('.hand-piece').forEach(button=>button.onclick=()=>{if(!active)return;selectedHand=selectedHand===button.dataset.piece?null:button.dataset.piece;selectedSource=null;renderHands();renderBoard()})}
+function renderHand(id,color){const el=document.getElementById(id),active=data.sideToMove===color;el.className=`tray ${active?'active':''}`;const pieces=data.hands[color];el.innerHTML=`<span class="tray-label">${color} hand</span>${pieces.length?pieces.map(piece=>`<button class="hand-piece ${selectedHand===piece?'selected':''}" data-piece="${piece}" aria-label="Place ${color.toLowerCase()} ${piece.toLowerCase()}">${pieceImage(color,piece)}</button>`).join(''):'<span class="hand-empty">No pieces in hand</span>'}`;el.querySelectorAll('.hand-piece').forEach(button=>button.onclick=()=>{if(!active)return;selectedHand=selectedHand===button.dataset.piece?null:button.dataset.piece;selectedSource=null;renderHands();renderBoard()})}
 function coord(index){return 'abcd'[index%4]+(Math.floor(index/4)+1)}
 function candidateTargets(){const targets=new Set;for(const move of data.moves){if(selectedHand&&move.notation.startsWith(letter[selectedHand]+'@'))targets.add(move.notation.slice(-2));if(selectedSource&&move.notation.startsWith(selectedSource+'-'))targets.add(move.notation.slice(-2))}return targets}
-function renderBoard(){const board=document.getElementById('board'),targets=candidateTargets(),html=[];for(let rank=3;rank>=0;rank--)for(let file=0;file<4;file++){const index=rank*4+file,square=coord(index),piece=data.board[index],selected=selectedSource===square,target=targets.has(square);html.push(`<button class="square ${(file+rank)%2?'alt':''} ${selected?'selected':''} ${target?'target':''}" data-square="${square}" data-index="${index}">${piece?`<span class="piece ${piece.color.toLowerCase()}">${glyph[piece.color][piece.piece]}${piece.direction?`<span class="direction">${piece.direction==='up'?'↑':'↓'}</span>`:''}</span>`:''}</button>`)}board.innerHTML=html.join('');board.querySelectorAll('.square').forEach(button=>button.onclick=()=>squareClick(button.dataset.square,Number(button.dataset.index)))}
+function renderBoard(){const board=document.getElementById('board'),targets=candidateTargets(),html=[];for(let rank=3;rank>=0;rank--)for(let file=0;file<4;file++){const index=rank*4+file,square=coord(index),piece=data.board[index],selected=selectedSource===square,target=targets.has(square),label=piece?`${square}: ${piece.color.toLowerCase()} ${piece.piece.toLowerCase()}`:`${square}: empty`;html.push(`<button class="square ${(file+rank)%2?'alt':''} ${selected?'selected':''} ${target?'target':''}" data-square="${square}" data-index="${index}" aria-label="${label}">${piece?`<span class="piece">${pieceImage(piece.color,piece.piece)}${piece.direction?`<span class="direction" title="Pawn travels ${piece.direction}">${piece.direction==='up'?'↑':'↓'}</span>`:''}</span>`:''}</button>`)}board.innerHTML=html.join('');board.querySelectorAll('.square').forEach(button=>button.onclick=()=>squareClick(button.dataset.square,Number(button.dataset.index)))}
 function squareClick(square,index){const target=data.moves.find(move=>selectedHand&&move.notation===letter[selectedHand]+'@'+square)||data.moves.find(move=>selectedSource&&move.notation===selectedSource+'-'+square);if(target){play(target);return}const piece=data.board[index];if(piece&&piece.color===data.sideToMove&&data.moves.some(move=>move.notation.startsWith(square+'-'))){selectedSource=selectedSource===square?null:square;selectedHand=null;renderHands();renderBoard()}else{selectedSource=null;selectedHand=null;renderHands();renderBoard()}}
 function renderHistory(){const el=document.getElementById('history');if(!line.length){el.innerHTML='<div class="empty-line">No moves yet</div>';return}let html='';for(let i=0;i<line.length;i+=2){html+=`<div class="lrow"><span class="lnum">${i/2+1}.</span>${[i,i+1].map(ply=>ply<line.length?`<button class="ply ${cursor===ply+1?'cur':''}" data-cursor="${ply+1}">${esc(line[ply].notation)}</button>`:'<span></span>').join('')}</div>`}el.innerHTML=html;el.querySelectorAll('.ply').forEach(button=>button.onclick=()=>{cursor=Number(button.dataset.cursor);load()})}
 function renderMoves(){const el=document.getElementById('moves'),moves=sortedMoves();if(!moves.length){el.innerHTML='<div class="loading">Terminal position</div>';return}let html='',group=null;for(const move of moves){if(move.result!==group){group=move.result;html+=`<div class="grouphdr ${group}">${group==='Win'?'Winning':group==='Draw'?'Drawing':'Losing'} moves</div>`}const score=move.distance==null?'draw':`${move.result.toLowerCase()} in ${move.distance}`;html+=`<button class="move" data-index="${move.index}"><span class="mv">${esc(move.notation)}${move.optimal?'<span class="star">★</span>':''}</span><span class="badge ${move.result}">${score}</span></button>`}el.innerHTML=html;el.querySelectorAll('.move').forEach(button=>button.onclick=()=>play(data.moves.find(move=>move.index===Number(button.dataset.index))))}

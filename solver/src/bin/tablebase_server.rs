@@ -12,6 +12,14 @@ use tic_tac_chec::{
 };
 
 const INDEX_HTML: &str = include_str!("../../web/index.html");
+const WHITE_PAWN: &str = include_str!("../../web/pieces/cburnett/wP.svg");
+const WHITE_KNIGHT: &str = include_str!("../../web/pieces/cburnett/wN.svg");
+const WHITE_BISHOP: &str = include_str!("../../web/pieces/cburnett/wB.svg");
+const WHITE_ROOK: &str = include_str!("../../web/pieces/cburnett/wR.svg");
+const BLACK_PAWN: &str = include_str!("../../web/pieces/cburnett/bP.svg");
+const BLACK_KNIGHT: &str = include_str!("../../web/pieces/cburnett/bN.svg");
+const BLACK_BISHOP: &str = include_str!("../../web/pieces/cburnett/bB.svg");
+const BLACK_ROOK: &str = include_str!("../../web/pieces/cburnett/bR.svg");
 
 fn main() -> Result<(), Box<dyn Error>> {
     let arguments: Vec<_> = std::env::args().collect();
@@ -76,6 +84,9 @@ fn handle(
     if target == "/health" {
         return respond(stream, 200, "application/json", "{\"status\":\"ok\"}");
     }
+    if let Some(asset) = piece_asset(target) {
+        return respond(stream, 200, "image/svg+xml", asset);
+    }
     if target.starts_with("/api/probe") {
         let body = match parse_path(target).and_then(|path| probe_json(&path, tablebase, rules)) {
             Ok(body) => body,
@@ -87,6 +98,20 @@ fn handle(
         return respond(stream, 200, "application/json", &body);
     }
     respond(stream, 404, "text/plain; charset=utf-8", "Not found")
+}
+
+fn piece_asset(target: &str) -> Option<&'static str> {
+    match target {
+        "/pieces/cburnett/wP.svg" => Some(WHITE_PAWN),
+        "/pieces/cburnett/wN.svg" => Some(WHITE_KNIGHT),
+        "/pieces/cburnett/wB.svg" => Some(WHITE_BISHOP),
+        "/pieces/cburnett/wR.svg" => Some(WHITE_ROOK),
+        "/pieces/cburnett/bP.svg" => Some(BLACK_PAWN),
+        "/pieces/cburnett/bN.svg" => Some(BLACK_KNIGHT),
+        "/pieces/cburnett/bB.svg" => Some(BLACK_BISHOP),
+        "/pieces/cburnett/bR.svg" => Some(BLACK_ROOK),
+        _ => None,
+    }
 }
 
 fn parse_path(target: &str) -> Result<Vec<usize>, String> {
