@@ -1,7 +1,7 @@
 # Hosted tablebase explorer boundary
 
-Status: implementation target after the canonical remoteness artifact and
-move-by-move Rust probe.
+Status: implemented and verified locally; artifact provisioning and public
+deployment remain.
 
 ## Product behavior
 
@@ -15,6 +15,10 @@ current position it shows:
 - whether it is remoteness-optimal: fastest win, any drawing continuation, or
   longest resistance in a loss;
 - the canonical dense key used for the table lookup.
+
+The explorer also serves a sourced solve write-up at `/write-up/`. It keeps the
+exhaustive tablebase proof distinct from the illustrative drawing lasso and
+links the production record and generated strategic report.
 
 Shareable links should initially encode move history from the empty board. This
 is unambiguous and lets the rules engine validate every transition. A later
@@ -53,9 +57,11 @@ rules.
 
 ## Delivery sequence
 
-1. Add stable JSON types and move-history replay around the existing probe.
-2. Add a long-lived HTTP service that loads the artifact once.
-3. Build the board, move list, history navigation, and shareable links.
-4. Add artifact provisioning and startup verification on the host.
-5. Validate browser/API results against the CLI on fixed opening, decisive,
-   returning-pawn, capture/re-entry, and terminal fixtures.
+1. Completed: stable JSON responses and checked move-history replay.
+2. Completed: long-lived HTTP service with one validated artifact load.
+3. Completed: board, hands, dragging, ranked moves, history navigation, move
+   previews, terminal presentation, and write-up.
+4. Pending deployment: artifact provisioning and startup verification on the
+   public host.
+5. Completed locally: browser/API behavior checked against engine fixtures for
+   opening replay, absolute orientation, decisive distance, and terminal play.

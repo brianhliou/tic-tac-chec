@@ -12,6 +12,7 @@ use tic_tac_chec::{
 };
 
 const INDEX_HTML: &str = include_str!("../../web/index.html");
+const WRITE_UP_HTML: &str = include_str!("../../web/write-up.html");
 const WHITE_PAWN: &str = include_str!("../../web/pieces/cburnett/wP.svg");
 const WHITE_KNIGHT: &str = include_str!("../../web/pieces/cburnett/wN.svg");
 const WHITE_BISHOP: &str = include_str!("../../web/pieces/cburnett/wB.svg");
@@ -78,8 +79,8 @@ fn handle(
             "Method not allowed",
         );
     }
-    if target == "/" {
-        return respond(stream, 200, "text/html; charset=utf-8", INDEX_HTML);
+    if let Some(page) = page_asset(target) {
+        return respond(stream, 200, "text/html; charset=utf-8", page);
     }
     if target == "/health" {
         return respond(stream, 200, "application/json", "{\"status\":\"ok\"}");
@@ -98,6 +99,14 @@ fn handle(
         return respond(stream, 200, "application/json", &body);
     }
     respond(stream, 404, "text/plain; charset=utf-8", "Not found")
+}
+
+fn page_asset(target: &str) -> Option<&'static str> {
+    match target {
+        "/" => Some(INDEX_HTML),
+        "/write-up" | "/write-up/" => Some(WRITE_UP_HTML),
+        _ => None,
+    }
 }
 
 fn piece_asset(target: &str) -> Option<&'static str> {
@@ -338,6 +347,18 @@ mod tests {
             parse_path("/api/probe?path=0,17,4").unwrap(),
             vec![0, 17, 4]
         );
+    }
+
+    #[test]
+    fn static_pages_have_stable_routes() {
+        assert!(page_asset("/")
+            .unwrap()
+            .contains("Interactive Tablebase Explorer"));
+        assert!(page_asset("/write-up")
+            .unwrap()
+            .contains("Solving Tic Tac Chec"));
+        assert_eq!(page_asset("/write-up"), page_asset("/write-up/"));
+        assert!(page_asset("/missing").is_none());
     }
 
     #[test]

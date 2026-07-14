@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solving Tic Tac Chec</title>
+<meta name="description" content="How the original 4×4 Tic Tac Chec game was strongly solved as a draw, with a complete audited tablebase of 2.48 billion positions.">
+<style>
+  :root { --ink:#242722; --muted:#6f746b; --line:#e5e6df; --paper:#fffefa; --soft:#f5f3e9;
+          --green:#597846; --green-dark:#31462a; --orange:#d98a2b; --red:#a84738; }
+  * { box-sizing:border-box; }
+  html { scroll-behavior:smooth; }
+  body { margin:0; color:var(--ink); background:var(--paper); font:17px/1.68 Georgia,"Times New Roman",serif; }
+  a { color:#a85f16; text-decoration-thickness:1px; text-underline-offset:3px; }
+  a:hover { color:#743e0b; }
+  .topbar { height:58px; padding:0 max(22px,calc((100vw - 1080px)/2)); display:flex; align-items:center;
+            border-bottom:1px solid var(--line); background:rgba(255,254,250,.94); font:600 14px/1.2 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+            position:sticky; top:0; z-index:4; backdrop-filter:blur(12px); }
+  .brand { color:var(--green-dark); text-decoration:none; font-size:16px; }
+  .toplinks { margin-left:auto; display:flex; gap:20px; }
+  .toplinks a { text-decoration:none; color:#8a591f; }
+  .hero { padding:82px 22px 70px; background:linear-gradient(145deg,#eef0d8 0%,#f8f3df 48%,#efe7d1 100%);
+          border-bottom:1px solid #dedbc9; }
+  .hero-inner { max-width:900px; margin:auto; }
+  .eyebrow { margin:0 0 13px; color:var(--green); font:700 12px/1.2 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+             letter-spacing:.13em; text-transform:uppercase; }
+  h1 { max-width:790px; margin:0; color:var(--green-dark); font-size:clamp(42px,7vw,72px); line-height:1.02; letter-spacing:-.035em; }
+  .dek { max-width:730px; margin:25px 0 0; color:#4e554a; font-size:clamp(20px,2.6vw,25px); line-height:1.5; }
+  .hero-actions { display:flex; gap:13px; flex-wrap:wrap; margin-top:31px; font:700 14px/1.2 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+  .hero-actions a { padding:11px 17px; border-radius:9px; text-decoration:none; }
+  .primary { color:#fff; background:var(--green-dark); }
+  .primary:hover { color:#fff; background:#1e321a; }
+  .secondary { color:var(--green-dark); border:1px solid #aeb79b; background:rgba(255,255,255,.5); }
+  article { width:min(760px,calc(100% - 40px)); margin:66px auto 100px; }
+  article h2 { margin:64px 0 16px; color:var(--green-dark); font-size:34px; line-height:1.18; letter-spacing:-.02em; }
+  article h3 { margin:36px 0 10px; color:#3a4735; font:700 20px/1.3 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+  article p { margin:0 0 22px; }
+  article strong { color:#30372d; }
+  .lede:first-letter { float:left; margin:9px 8px 0 0; color:var(--green); font-size:63px; line-height:.65; font-weight:700; }
+  .stats { margin:36px 0 42px; display:grid; grid-template-columns:repeat(3,1fr); border:1px solid #d8ddcf;
+           border-radius:13px; overflow:hidden; background:#fff; box-shadow:0 9px 28px rgba(49,70,42,.07); }
+  .stat { min-height:126px; padding:20px 18px; border-right:1px solid #e1e4dc; display:flex; flex-direction:column; justify-content:center; }
+  .stat:nth-child(3n) { border-right:0; }
+  .stat:nth-child(n+4) { border-top:1px solid #e1e4dc; }
+  .stat b { color:var(--green-dark); font:750 clamp(23px,4vw,31px)/1.05 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+  .stat span { margin-top:8px; color:var(--muted); font:600 12px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+               letter-spacing:.035em; text-transform:uppercase; }
+  table { width:100%; margin:25px 0 30px; border-collapse:collapse; font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+  th,td { padding:11px 12px; border-bottom:1px solid var(--line); text-align:right; }
+  th:first-child,td:first-child { text-align:left; }
+  th { color:#586052; font-size:12px; letter-spacing:.055em; text-transform:uppercase; background:#f7f6ef; }
+  .callout { margin:34px -18px; padding:24px 27px; border-left:5px solid var(--orange); border-radius:4px 12px 12px 4px; background:#fbf3e6; }
+  .callout p:last-child { margin-bottom:0; }
+  .result { border-left-color:var(--green); background:#edf3e8; }
+  .pipeline { margin:28px 0; padding:0; list-style:none; counter-reset:steps; }
+  .pipeline li { position:relative; margin:0; padding:18px 0 18px 54px; border-top:1px solid var(--line); }
+  .pipeline li:last-child { border-bottom:1px solid var(--line); }
+  .pipeline li::before { counter-increment:steps; content:counter(steps); position:absolute; left:5px; top:18px; width:29px; height:29px;
+                         display:grid; place-items:center; border-radius:50%; color:#fff; background:var(--green); font:700 13px/1 sans-serif; }
+  .pipeline b { display:block; margin-bottom:2px; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+  code { padding:2px 5px; border-radius:5px; background:#efeee7; font:14px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace; }
+  pre { overflow:auto; margin:24px 0; padding:19px 22px; border:1px solid #d9ddd3; border-radius:11px; color:#e9eedf;
+        background:#293527; font:14px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace; }
+  .sources { padding-left:22px; }
+  .sources li { margin:9px 0; padding-left:4px; }
+  .fine { color:var(--muted); font-size:14px; }
+  footer { padding:35px 20px 55px; border-top:1px solid var(--line); color:var(--muted); text-align:center;
+           font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+  @media (max-width:650px) {
+    .hero { padding-top:58px; }
+    .toplinks a:nth-child(2) { display:none; }
+    .stats { grid-template-columns:1fr 1fr; }
+    .stat:nth-child(3n) { border-right:1px solid #e1e4dc; }
+    .stat:nth-child(2n) { border-right:0; }
+    .stat:nth-child(n+3) { border-top:1px solid #e1e4dc; }
+    .callout { margin-left:0; margin-right:0; }
+  }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/">Tic Tac Chec, solved</a>
+  <nav class="toplinks"><a href="/">Explorer</a><a href="https://github.com/brianhliou/tic-tac-chec">Source</a><a href="https://brianhliou.com/">Brian Liou</a></nav>
+</header>
+
+<section class="hero">
+  <div class="hero-inner">
+    <p class="eyebrow">Research write-up · July 2026</p>
+    <h1>Solving Tic Tac Chec</h1>
+    <p class="dek">A complete retrograde analysis of the original 4×4 alignment game. Perfect play is a draw, and a 2.48-billion-position tablebase now ranks every legal move.</p>
+    <div class="hero-actions"><a class="primary" href="/">Explore the tablebase</a><a class="secondary" href="https://github.com/brianhliou/tic-tac-chec">View the research record</a></div>
+  </div>
+</section>
+
+<article>
+  <p class="lede">Tic Tac Chec looks almost too small to resist brute force. Each player has only a pawn, knight, bishop, and rook on a 4×4 board. The goal is not checkmate but alignment: place all four pieces in one rank, file, or long diagonal. Yet captures return pieces to their owner's hand, pawns reverse at the board edge, and positions can cycle forever. Those rules turn a tiny board into a large, loopy game graph.</p>
+
+  <div class="callout result"><p><strong>The result:</strong> under the original Dream Green rules with pawn captures following the pawn's current travel direction, Tic Tac Chec is a <strong>draw with perfect play</strong>.</p></div>
+
+  <div class="stats">
+    <div class="stat"><b>2.462B</b><span>normalized post-opening positions</span></div>
+    <div class="stat"><b>14.237M</b><span>forced-placement opening positions</span></div>
+    <div class="stat"><b>28.73B</b><span>post-opening move edges audited</span></div>
+    <div class="stat"><b>91.51%</b><span>post-opening positions drawn</span></div>
+    <div class="stat"><b>41 plies</b><span>deepest forced post-opening win</span></div>
+    <div class="stat"><b>1 byte</b><span>value and distance per position</span></div>
+  </div>
+
+  <h2>The game</h2>
+  <p>Play starts on an empty board. White moves first. For the first six turns, each player places one piece per turn until both have three pieces on the board. Movement then remains unlocked for the rest of the game, even if a later capture leaves a player with fewer than three pieces.</p>
+  <p>After the opening, a turn either places an in-hand piece on any empty square or moves an on-board piece using its chess movement. Captured pieces are not eliminated; they return to their owner's hand and can be placed again later. Pawns move one square in their current direction, capture diagonally, and reverse direction when they reach either edge.</p>
+
+  <h3>The pawn ambiguity</h3>
+  <p>The printed rules say that a pawn reverses direction and captures only when moving “forward,” but they do not diagram a returning capture. The canonical solve reads “forward” as the pawn's current facing, so its capture diagonals reverse with its travel direction. A detailed French transcription and an independent playable implementation support that reading. The stricter “outbound-only” interpretation remains a named, implemented sensitivity variant; its table has not yet been computed.</p>
+
+  <h2>What “solved” means</h2>
+  <p>This is a <strong>strong solution</strong>, not only an opening verdict. The tablebase records win, loss, or draw for every position in the dense rules domain and gives exact distance to termination for every decisive position. A player with the table can play perfectly after any legal history.</p>
+
+  <table>
+    <thead><tr><th>Section</th><th>Wins</th><th>Losses</th><th>Draws</th></tr></thead>
+    <tbody>
+      <tr><td>Post-opening</td><td>184,895,598</td><td>24,178,920</td><td>2,253,286,227</td></tr>
+      <tr><td>Locked opening</td><td>147,472</td><td>30,468</td><td>14,058,925</td></tr>
+    </tbody>
+  </table>
+
+  <p>The numbers describe a draw-heavy game: 91.51% of post-opening positions are drawn. But decisive positions are often sharp. The deepest post-opening win lasts 41 plies under fastest-win play; the longest resistance from a lost position lasts 40.</p>
+
+  <h2>How the solve works</h2>
+  <ol class="pipeline">
+    <li><b>Give every position an exact integer address.</b> A collision-free rank encodes which pieces are on the board, their squares, and both pawn directions. Color swap plus 180° rotation always makes the player to move White in the stored post-opening table, halving the domain.</li>
+    <li><b>Work backward from finished games.</b> Every four-in-a-row is a loss for the player whose turn comes next. Generated predecessor edges propagate wins and losses through the graph until no new position resolves.</li>
+    <li><b>Call the unresolved residue draws.</b> In a finite loopy game graph, positions left after the win/loss fixpoint are exactly those from which neither player can force termination. Infinite non-winning play therefore has draw value without inventing a move limit.</li>
+    <li><b>Solve the six placement plies backward.</b> Once the post-opening table is fixed, the acyclic opening can be evaluated from ply five to the empty board. The empty board is a draw, and all 64 first moves retain it.</li>
+  </ol>
+
+  <p>Distance is added afterward. Terminal losses have distance zero. A win is one plus the shortest losing child; a nonterminal loss is one plus the longest winning child. Draws have no finite distance. The final artifact stores this result and distance together in one byte per position, totaling 2.48 GB.</p>
+
+  <h2>Why trust it?</h2>
+  <p>The solve was designed around independent checks rather than a single successful run. The production move generator was compared with a separate readable rules implementation. Rank and unrank were tested as a bijection. Generated predecessors were replayed forward. Finally, a pull-style audit regenerated every one of the 28,730,418,180 post-opening successor edges and checked the minimax equation at all 2,462,360,745 positions without using the solver's predecessor counters.</p>
+  <p>A separate distance audit checked all 209,074,518 decisive post-opening positions. The published table is tagged to the exact rules variant and protected by an internal CRC-64/XZ checksum:</p>
+  <pre>rules tag     0x54544303
+positions     2,462,360,745 post-opening
+                 14,236,865 locked opening
+table CRC-64  0xeb952765179a695e
+table SHA-256 f6644e7d35cd9653e1c4bb33b2e4221a…</pre>
+
+  <h2>A draw can still be unforgiving</h2>
+  <p>A deterministic perfect-play policy reaches a repeated position after a 32-ply prefix, then follows an exact 18-ply cycle. The cycle is a readable witness that the table can sustain a draw, although the exhaustive fixpoint audit, not this one line, is the proof against every possible deviation.</p>
+  <p>At the sharpest position on that line, Black has 18 legal moves. Only three draw. The other fifteen all lose in two plies:</p>
+  <pre>4  . . . .
+3  . N n .
+2  B P R r
+1  b . . .
+   a b c d
+
+Drawing: a1-b2, d2-c2, c3-a2
+All 15 alternatives: loss in 2 plies</pre>
+  <p>This is the character of the solved game: the global result is a draw, but maintaining it can demand precise tactical defense.</p>
+
+  <h2>Rules variants and next work</h2>
+  <p>This table intentionally covers one ruleset: the original 1998 Dream Green edition with travel-direction pawn captures. It does not mix in the materially different 2025 Bobby Fischer reissue. Future variants will use distinct rules tags and separate artifacts so a UI can never silently probe one game's position against another game's table.</p>
+  <p>The most useful next research run is the outbound-only pawn sensitivity solve. It will answer whether the one unresolved sentence in the original rules changes the opening value or only the shape of the table. The current canonical result remains tied to the best-supported travel-direction reading.</p>
+
+  <h2>Sources and artifacts</h2>
+  <ul class="sources">
+    <li><a href="https://redcanoe.weebly.com/uploads/7/4/5/0/7450428/ttcwb2.pdf">Dream Green printable rules</a>, the primary original-edition rulesheet.</li>
+    <li><a href="https://www.zpag.net/Jeux/Echec/tic_tac_chec.html">French rules transcription</a>, including pawn-orientation guidance.</li>
+    <li><a href="https://github.com/cutalion/tic-tac-chec">Alexander Glushkov's playable implementation</a>, useful independent movement prior art.</li>
+    <li><a href="https://github.com/brianhliou/tic-tac-chec/blob/main/research/runs/production-2026-07-13/summary.md">Production solve record</a>, with commands, timings, counts, and checksums.</li>
+    <li><a href="https://github.com/brianhliou/tic-tac-chec/blob/main/research/runs/production-2026-07-13/strategic-report.md">Generated strategic report</a>, with the exact remoteness histogram and replayed lines.</li>
+    <li><a href="https://github.com/brianhliou/tic-tac-chec">Solver and explorer source</a>.</li>
+  </ul>
+  <p class="fine">No earlier public strong or weak solution was found in the prior-art search. That is a documented negative search result, not proof that no private or obscure solve exists.</p>
+</article>
+
+<footer>From-scratch solver, independent audits, and tablebase explorer by Brian Liou.</footer>
+</body>
+</html>

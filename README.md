@@ -53,6 +53,9 @@ The underlying design is in
 [`research/solver-architecture.md`](research/solver-architecture.md).
 The probe-to-web boundary is specified in
 [`research/hosted-explorer.md`](research/hosted-explorer.md).
+The server also embeds a publication-ready
+[`solve write-up`](solver/web/write-up.html), linked from the explorer at
+`/write-up/`.
 
 A deterministic draw-preserving policy reaches an exact repeated position
 after a 32-ply prefix and then follows an 18-ply cycle. The replay-audited,
