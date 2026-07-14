@@ -1,7 +1,7 @@
 # Hosted tablebase explorer boundary
 
-Status: implemented and verified locally; artifact provisioning and public
-deployment remain.
+Status: implemented and verified locally; the release artifact is published
+and public deployment remains.
 
 ## Product behavior
 
@@ -51,6 +51,27 @@ encoding, and published SHA-256
 before becoming healthy. The compact artifact was compared entry-for-entry
 against all 2,476,597,610 codes in the source table.
 
+## Deployment package
+
+The root `Dockerfile` builds only `tablebase_server`, downloads the immutable
+`tablebase-v1` release asset with Docker's SHA-256 check, and copies both into a
+minimal Debian runtime. The service runs as a non-root user. `.dockerignore`
+keeps all local solve artifacts out of the build context; the verified local
+build sent 501.8 KB rather than the multiple gigabytes present in ignored run
+directories.
+
+The production image was built and exercised locally on 2026-07-14:
+
+- Docker-reported image size: **178,030,680 bytes**;
+- steady container memory after a probe: **465.4 MiB**;
+- health response: HTTP 200 in **0.003057 seconds**;
+- empty-board probe: HTTP 200 in **0.003676 seconds**, 8,072 response bytes;
+- empty-board result: draw, 64 legal moves, all 64 drawing.
+
+These are single-machine smoke measurements, not latency distributions. A 1 GB
+Railway memory limit leaves startup and request headroom while keeping the
+expected steady footprint near the paid Hobby minimum.
+
 ## Frontend contract
 
 The frontend owns presentation and move-history navigation; it does not
@@ -67,7 +88,8 @@ rules.
    previews, terminal presentation, and write-up.
 4. Completed locally: compact publication artifact generated and exhaustively
    compared with the audited source table.
-5. Pending deployment: release-asset provisioning and startup verification on
-   the public host.
+5. Completed: the compact artifact and checksum are published in the public
+   `tablebase-v1` GitHub release.
 6. Completed locally: browser/API behavior checked against engine fixtures for
    opening replay, absolute orientation, decisive distance, and terminal play.
+7. Pending deployment: build and startup verification on the public host.

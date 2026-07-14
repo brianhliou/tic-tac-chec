@@ -87,8 +87,9 @@ source entries. The resulting `post-opening-travel.ttb` is 485,862,535 bytes,
 with internal CRC-64/XZ `0xbe44f17a62ec33e1` and SHA-256
 `f80c1899e57941a2251ffa554645ad06e66d4e5fbd349b6d2b949efd2c526c53`.
 
-The compact artifact will be attached to the first public GitHub release; it is
-not committed to the repository.
+The compact artifact and checksum are available from the
+[`tablebase-v1`](https://github.com/brianhliou/tic-tac-chec/releases/tag/tablebase-v1)
+release; they are not committed to the repository.
 
 ## Reproduce
 
@@ -106,6 +107,14 @@ cargo run --manifest-path solver/Cargo.toml --release --bin strategic_report -- 
 cargo run --manifest-path solver/Cargo.toml --release --bin tablebase_server -- research/runs/production-2026-07-13/post-opening-travel.ttb 4173
 ```
 
+The production container downloads that immutable release asset during its
+multi-stage build and verifies the SHA-256 before creating the runtime image:
+
+```sh
+docker build -t tic-tac-chec .
+docker run --rm -p 4173:8080 tic-tac-chec
+```
+
 ## License
 
 The original solver and explorer source is available under the [MIT
@@ -115,6 +124,6 @@ under GPL-3.0-or-later; see the [piece credits](solver/web/pieces/CREDITS.md) an
 
 ## Roadmap
 
-1. Publish the compact artifact and host the completed visual explorer.
+1. Deploy the verified production container and attach the public domain.
 2. Package the methodology, audits, witness, and strategic report for publication.
 3. Obtain a designer/publisher pawn ruling and transcribe the complete 2025 rules.
