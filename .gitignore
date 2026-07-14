@@ -1,5 +1,6 @@
 /solver/target/
 *.tb
+*.ttb
 *.ctb
 *.bin
 research/runs/**/*

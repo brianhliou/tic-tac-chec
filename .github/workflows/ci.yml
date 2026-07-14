@@ -1,0 +1,22 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust components
+        run: rustup component add clippy rustfmt
+      - name: Check formatting
+        run: cargo fmt --manifest-path solver/Cargo.toml -- --check
+      - name: Test
+        run: cargo test --manifest-path solver/Cargo.toml
+      - name: Lint
+        run: cargo clippy --manifest-path solver/Cargo.toml --all-targets -- -D warnings

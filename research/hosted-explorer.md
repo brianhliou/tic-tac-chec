@@ -28,10 +28,11 @@ board occupancy alone is not a complete state.
 
 ## Backend contract
 
-The Rust service loads and validates `post-opening-travel.tb` once at startup.
-The first implementation can retain its 2,476,597,610 data bytes in a `Vec` on
-an 8 GB host. A memory-mapped loader can subsequently reduce startup allocation
-and let the operating system page the same immutable format.
+The Rust service loads and validates `post-opening-travel.ttb` once at startup.
+This draw-aware derivative stores a decisive-position bitmap, six-bit distances
+for decisive positions only, and a prefix-rank directory. It is 485,862,535
+bytes (463 MiB) and remains fully memory-resident, avoiding random disk reads
+without paying for the 2.48 GB source representation.
 
 The probe endpoint accepts either validated move history or a fully specified
 engine position and returns JSON equivalent to the library's `ProbeResult`:
@@ -44,8 +45,11 @@ engine position and returns JSON equivalent to the library's `ProbeResult`:
 
 Moves are generated on demand. The service never stores or downloads the
 28,730,418,180-edge graph. At deployment, startup must verify rules tag
-`0x54544303`, internal CRC-64/XZ `0xeb952765179a695e`, dimensions, encoding,
-and the published SHA-256 before becoming healthy.
+`0x54544303`, internal CRC-64/XZ `0xbe44f17a62ec33e1`, dimensions, rank index,
+encoding, and published SHA-256
+`f80c1899e57941a2251ffa554645ad06e66d4e5fbd349b6d2b949efd2c526c53`
+before becoming healthy. The compact artifact was compared entry-for-entry
+against all 2,476,597,610 codes in the source table.
 
 ## Frontend contract
 
@@ -58,10 +62,12 @@ rules.
 ## Delivery sequence
 
 1. Completed: stable JSON responses and checked move-history replay.
-2. Completed: long-lived HTTP service with one validated artifact load.
+2. Completed: long-lived HTTP service with one validated compact artifact load.
 3. Completed: board, hands, dragging, ranked moves, history navigation, move
    previews, terminal presentation, and write-up.
-4. Pending deployment: artifact provisioning and startup verification on the
-   public host.
-5. Completed locally: browser/API behavior checked against engine fixtures for
+4. Completed locally: compact publication artifact generated and exhaustively
+   compared with the audited source table.
+5. Pending deployment: release-asset provisioning and startup verification on
+   the public host.
+6. Completed locally: browser/API behavior checked against engine fixtures for
    opening replay, absolute orientation, decisive distance, and terminal play.

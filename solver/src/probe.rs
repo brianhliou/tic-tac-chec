@@ -2,6 +2,7 @@
 
 use std::fmt;
 
+use crate::compact::CompactTablebaseArtifact;
 use crate::ranking::{rank_opening, rank_post_opening, OpeningId, PostOpeningId};
 use crate::remoteness::DRAW_CODE;
 use crate::retrograde::Value;
@@ -37,6 +38,16 @@ impl TablebaseLookup for TablebaseArtifact {
 
     fn post_opening_code(&self, id: PostOpeningId) -> u8 {
         self.post_codes()[id.get() as usize]
+    }
+}
+
+impl TablebaseLookup for CompactTablebaseArtifact {
+    fn opening_code(&self, id: OpeningId) -> u8 {
+        self.opening_code(u64::from(id.get()))
+    }
+
+    fn post_opening_code(&self, id: PostOpeningId) -> u8 {
+        self.post_code(u64::from(id.get()))
     }
 }
 
@@ -178,7 +189,10 @@ impl std::error::Error for ProbeError {}
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::compact::{self, CompactTablebaseArtifact};
     use crate::ranking::{LOCKED_OPENING_DOMAIN, POST_OPENING_DOMAIN};
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     struct OpeningCodes(Vec<u8>);
 
@@ -199,6 +213,32 @@ mod tests {
         assert_eq!(result.outcome.value, Value::Draw);
         assert_eq!(result.moves.len(), 64);
         assert!(result.moves.iter().all(|candidate| candidate.optimal));
+    }
+
+    #[test]
+    fn compact_artifact_drives_the_same_probe_contract() {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!(
+            "tic-tac-chec-compact-probe-{}-{nonce}.ttb",
+            std::process::id()
+        ));
+        let codes = vec![DRAW_CODE; 65];
+        compact::save_atomic(&path, Rules::default().stable_tag(), &[], &codes).unwrap();
+        let table = CompactTablebaseArtifact::load(
+            &path,
+            Rules::default().stable_tag(),
+            0,
+            codes.len() as u64,
+        )
+        .unwrap();
+        let result = probe(&Position::initial(), Rules::default(), &table).unwrap();
+        assert_eq!(result.outcome.value, Value::Draw);
+        assert_eq!(result.moves.len(), 64);
+        assert!(result.moves.iter().all(|candidate| candidate.optimal));
+        fs::remove_file(path).unwrap();
     }
 
     #[test]

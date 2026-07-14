@@ -2,10 +2,12 @@ use std::error::Error;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::path::Path;
+use std::sync::{mpsc, Arc, Mutex};
+use std::time::Duration;
 
+use tic_tac_chec::compact::CompactTablebaseArtifact;
 use tic_tac_chec::probe::probe;
 use tic_tac_chec::ranking::{LOCKED_OPENING_DOMAIN, POST_OPENING_DOMAIN};
-use tic_tac_chec::tablebase::TablebaseArtifact;
 use tic_tac_chec::{
     Color, Move, PawnDirection, Piece, PieceKind, Position, ReturningPawnCapture, Rules, Square,
     BOARD_CELLS,
@@ -21,34 +23,65 @@ const BLACK_PAWN: &str = include_str!("../../web/pieces/cburnett/bP.svg");
 const BLACK_KNIGHT: &str = include_str!("../../web/pieces/cburnett/bN.svg");
 const BLACK_BISHOP: &str = include_str!("../../web/pieces/cburnett/bB.svg");
 const BLACK_ROOK: &str = include_str!("../../web/pieces/cburnett/bR.svg");
+const DEFAULT_PORT: u16 = 4173;
+const DEFAULT_WORKERS: usize = 8;
+const MAX_PATH_PLIES: usize = 512;
+const CONNECTION_QUEUE: usize = 128;
+const IO_TIMEOUT: Duration = Duration::from_secs(10);
 
 fn main() -> Result<(), Box<dyn Error>> {
     let arguments: Vec<_> = std::env::args().collect();
     let Some(path) = arguments.get(1) else {
         usage();
     };
-    let port = arguments
+    let positional_port = arguments
         .get(2)
         .filter(|argument| !argument.starts_with("--"))
         .map(|argument| argument.parse::<u16>())
+        .transpose()?;
+    let port = match positional_port {
+        Some(port) => port,
+        None => std::env::var("PORT")
+            .ok()
+            .map(|value| value.parse::<u16>())
+            .transpose()?
+            .unwrap_or(DEFAULT_PORT),
+    };
+    let host = std::env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_owned());
+    let workers = std::env::var("TABLEBASE_WORKERS")
+        .ok()
+        .map(|value| value.parse::<usize>())
         .transpose()?
-        .unwrap_or(4173);
+        .unwrap_or(DEFAULT_WORKERS);
+    if workers == 0 {
+        return Err("TABLEBASE_WORKERS must be positive".into());
+    }
     let rules = rules(&arguments);
     println!("Loading and validating tablebase...");
-    let tablebase = TablebaseArtifact::load(
+    let tablebase = Arc::new(CompactTablebaseArtifact::load(
         Path::new(path),
         rules.stable_tag(),
         POST_OPENING_DOMAIN as u64,
         LOCKED_OPENING_DOMAIN as u64,
-    )?;
-    let address = format!("127.0.0.1:{port}");
+    )?);
+    let address = format!("{host}:{port}");
     let listener = TcpListener::bind(&address)?;
+    let (sender, receiver) = mpsc::sync_channel::<TcpStream>(CONNECTION_QUEUE);
+    let receiver = Arc::new(Mutex::new(receiver));
+    for worker in 0..workers {
+        let receiver = Arc::clone(&receiver);
+        let tablebase = Arc::clone(&tablebase);
+        std::thread::Builder::new()
+            .name(format!("tablebase-worker-{worker}"))
+            .spawn(move || worker_loop(&receiver, &tablebase, rules))?;
+    }
     println!("Tic Tac Chec tablebase: http://{address}");
+    println!("workers = {workers}");
     for stream in listener.incoming() {
         match stream {
-            Ok(mut stream) => {
-                if let Err(error) = handle(&mut stream, &tablebase, rules) {
-                    eprintln!("request error: {error}");
+            Ok(stream) => {
+                if sender.send(stream).is_err() {
+                    return Err("tablebase worker queue disconnected".into());
                 }
             }
             Err(error) => eprintln!("connection error: {error}"),
@@ -57,9 +90,27 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+fn worker_loop(
+    receiver: &Mutex<mpsc::Receiver<TcpStream>>,
+    tablebase: &CompactTablebaseArtifact,
+    rules: Rules,
+) {
+    loop {
+        let stream = receiver.lock().expect("worker queue poisoned").recv();
+        let Ok(mut stream) = stream else {
+            break;
+        };
+        let _ = stream.set_read_timeout(Some(IO_TIMEOUT));
+        let _ = stream.set_write_timeout(Some(IO_TIMEOUT));
+        if let Err(error) = handle(&mut stream, tablebase, rules) {
+            eprintln!("request error: {error}");
+        }
+    }
+}
+
 fn handle(
     stream: &mut TcpStream,
-    tablebase: &TablebaseArtifact,
+    tablebase: &CompactTablebaseArtifact,
     rules: Rules,
 ) -> Result<(), Box<dyn Error>> {
     let mut request = [0_u8; 16 * 1024];
@@ -80,15 +131,21 @@ fn handle(
         );
     }
     if let Some(page) = page_asset(target) {
-        return respond(stream, 200, "text/html; charset=utf-8", page);
+        return respond_cached(stream, 200, "text/html; charset=utf-8", page, "no-cache");
     }
     if target == "/health" {
         return respond(stream, 200, "application/json", "{\"status\":\"ok\"}");
     }
     if let Some(asset) = piece_asset(target) {
-        return respond(stream, 200, "image/svg+xml", asset);
+        return respond_cached(
+            stream,
+            200,
+            "image/svg+xml",
+            asset,
+            "public, max-age=31536000, immutable",
+        );
     }
-    if target.starts_with("/api/probe") {
+    if target == "/api/probe" || target.starts_with("/api/probe?") {
         let body = match parse_path(target).and_then(|path| probe_json(&path, tablebase, rules)) {
             Ok(body) => body,
             Err(error) => {
@@ -134,14 +191,18 @@ fn parse_path(target: &str) -> Result<Vec<usize>, String> {
     if encoded.is_empty() {
         return Ok(Vec::new());
     }
-    encoded
+    let path: Vec<_> = encoded
         .split(',')
         .map(|index| {
             index
                 .parse::<usize>()
                 .map_err(|_| "path must contain comma-separated move indexes".to_owned())
         })
-        .collect()
+        .collect::<Result<_, _>>()?;
+    if path.len() > MAX_PATH_PLIES {
+        return Err(format!("path may contain at most {MAX_PATH_PLIES} plies"));
+    }
+    Ok(path)
 }
 
 fn replay(path: &[usize], rules: Rules) -> Result<(Position, Vec<Move>), String> {
@@ -165,7 +226,7 @@ fn replay(path: &[usize], rules: Rules) -> Result<(Position, Vec<Move>), String>
 
 fn probe_json(
     path: &[usize],
-    tablebase: &TablebaseArtifact,
+    tablebase: &CompactTablebaseArtifact,
     rules: Rules,
 ) -> Result<String, String> {
     let (position, history) = replay(path, rules)?;
@@ -299,6 +360,16 @@ fn respond(
     content_type: &str,
     body: &str,
 ) -> Result<(), Box<dyn Error>> {
+    respond_cached(stream, status, content_type, body, "no-store")
+}
+
+fn respond_cached(
+    stream: &mut TcpStream,
+    status: u16,
+    content_type: &str,
+    body: &str,
+    cache_control: &str,
+) -> Result<(), Box<dyn Error>> {
     let reason = match status {
         200 => "OK",
         400 => "Bad Request",
@@ -308,7 +379,7 @@ fn respond(
     };
     write!(
         stream,
-        "HTTP/1.1 {status} {reason}\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n{body}",
+        "HTTP/1.1 {status} {reason}\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nCache-Control: {cache_control}\r\nX-Content-Type-Options: nosniff\r\nConnection: close\r\n\r\n{body}",
         body.len()
     )?;
     stream.flush()?;
@@ -331,7 +402,7 @@ fn rules(arguments: &[String]) -> Rules {
 }
 
 fn usage() -> ! {
-    eprintln!("usage: tablebase_server <tablebase.tb> [port] [--pawn=travel|outbound|opponent]");
+    eprintln!("usage: tablebase_server <compact.ttb> [port] [--pawn=travel|outbound|opponent]");
     std::process::exit(2)
 }
 
@@ -347,6 +418,17 @@ mod tests {
             parse_path("/api/probe?path=0,17,4").unwrap(),
             vec![0, 17, 4]
         );
+    }
+
+    #[test]
+    fn path_parser_rejects_unbounded_history() {
+        let target = format!(
+            "/api/probe?path={}",
+            std::iter::repeat_n("0", MAX_PATH_PLIES + 1)
+                .collect::<Vec<_>>()
+                .join(",")
+        );
+        assert!(parse_path(&target).unwrap_err().contains("at most"));
     }
 
     #[test]

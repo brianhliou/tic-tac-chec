@@ -134,7 +134,7 @@
     <li><b>Solve the six placement plies backward.</b> Once the post-opening table is fixed, the acyclic opening can be evaluated from ply five to the empty board. The empty board is a draw, and all 64 first moves retain it.</li>
   </ol>
 
-  <p>Distance is added afterward. Terminal losses have distance zero. A win is one plus the shortest losing child; a nonterminal loss is one plus the longest winning child. Draws have no finite distance. The final artifact stores this result and distance together in one byte per position, totaling 2.48 GB.</p>
+  <p>Distance is added afterward. Terminal losses have distance zero. A win is one plus the shortest losing child; a nonterminal loss is one plus the longest winning child. Draws have no finite distance. The audited solve artifact stores this result and distance together in one byte per position, totaling 2.48 GB. For publication, a lossless draw-aware encoding stores distances only for decisive positions and reduces the full table to 463 MiB; every compact entry was compared with its source value.</p>
 
   <h2>Why trust it?</h2>
   <p>The solve was designed around independent checks rather than a single successful run. The production move generator was compared with a separate readable rules implementation. Rank and unrank were tested as a bijection. Generated predecessors were replayed forward. Finally, a pull-style audit regenerated every one of the 28,730,418,180 post-opening successor edges and checked the minimax equation at all 2,462,360,745 positions without using the solver's predecessor counters.</p>
@@ -176,6 +176,6 @@ All 15 alternatives: loss in 2 plies</pre>
   <p class="fine">No earlier public strong or weak solution was found in the prior-art search. That is a documented negative search result, not proof that no private or obscure solve exists.</p>
 </article>
 
-<footer>From-scratch solver, independent audits, and tablebase explorer by Brian Liou.</footer>
+<footer>From-scratch solver, separate exhaustive audits, and tablebase explorer by Brian Liou.</footer>
 </body>
 </html>

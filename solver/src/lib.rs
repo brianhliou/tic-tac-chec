@@ -1,6 +1,7 @@
 use std::fmt;
 
 pub mod checkpoint;
+pub mod compact;
 pub mod graph;
 pub mod opening;
 pub mod parallel;

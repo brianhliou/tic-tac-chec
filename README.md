@@ -5,11 +5,13 @@ game with chess movement and reusable captured pieces.
 
 The canonical original-edition game is **a draw under perfect play**. The full
 normalized post-opening W/L/D table and all six placement-only opening plies
-were solved and independently audited on 2026-07-13. Exact counts, timings,
+were solved and checked exhaustively through separately implemented audit paths
+on 2026-07-13. Exact counts, timings,
 checkpoint checksum, and reproduction commands are in
 [`research/runs/production-2026-07-13/summary.md`](research/runs/production-2026-07-13/summary.md).
-Decisive positions now also carry audited optimal remoteness, with a maximum of
-41 plies, in a checksummed one-byte-per-state artifact.
+Decisive positions also carry audited optimal remoteness, with a maximum of 41
+plies. The solve artifact uses one byte per state; a draw-aware publication
+artifact preserves identical probes in **485,862,535 bytes (463 MiB)**.
 
 ## Solve target
 
@@ -72,6 +74,22 @@ examples, and critical choices on that drawing lasso are collected in the
 generated
 [`strategic report`](research/runs/production-2026-07-13/strategic-report.md).
 
+## Artifacts
+
+Large generated artifacts are intentionally excluded from Git. The audited
+source table `post-opening-travel.tb` is 2,476,597,658 bytes and has SHA-256
+`f6644e7d35cd9653e1c4bb33b2e4221afd27567385c0ec1f7b71c84e65c8f045`.
+
+The explorer uses a lossless draw-aware derivative. A decisive-position bitmap
+omits distance storage for draws; six-bit distances and a rank directory retain
+constant-time lookup. Its exhaustive comparison covered all 2,476,597,610
+source entries. The resulting `post-opening-travel.ttb` is 485,862,535 bytes,
+with internal CRC-64/XZ `0xbe44f17a62ec33e1` and SHA-256
+`f80c1899e57941a2251ffa554645ad06e66d4e5fbd349b6d2b949efd2c526c53`.
+
+The compact artifact will be attached to the first public GitHub release; it is
+not committed to the repository.
+
 ## Reproduce
 
 ```sh
@@ -81,13 +99,22 @@ cargo run --manifest-path solver/Cargo.toml --release --bin rank_bench -- 100000
 cargo run --manifest-path solver/Cargo.toml --release --bin post_opening_solver -- verify research/runs/production-2026-07-13/post-opening-travel.ctb
 cargo run --manifest-path solver/Cargo.toml --release --bin post_opening_solver -- opening research/runs/production-2026-07-13/post-opening-travel.ctb 16
 cargo run --manifest-path solver/Cargo.toml --release --bin post_opening_solver -- verify-tablebase research/runs/production-2026-07-13/post-opening-travel.tb
+cargo run --manifest-path solver/Cargo.toml --release --bin compact_tablebase -- pack research/runs/production-2026-07-13/post-opening-travel.tb research/runs/production-2026-07-13/post-opening-travel.ttb
+cargo run --manifest-path solver/Cargo.toml --release --bin compact_tablebase -- verify research/runs/production-2026-07-13/post-opening-travel.ttb
 cargo run --manifest-path solver/Cargo.toml --release --bin tablebase_probe -- research/runs/production-2026-07-13/post-opening-travel.tb opening 0
 cargo run --manifest-path solver/Cargo.toml --release --bin strategic_report -- research/runs/production-2026-07-13/post-opening-travel.tb research/runs/production-2026-07-13/strategic-report.md <source-commit>
-cargo run --manifest-path solver/Cargo.toml --release --bin tablebase_server -- research/runs/production-2026-07-13/post-opening-travel.tb 4173
+cargo run --manifest-path solver/Cargo.toml --release --bin tablebase_server -- research/runs/production-2026-07-13/post-opening-travel.ttb 4173
 ```
+
+## License
+
+The original solver and explorer source is available under the [MIT
+License](LICENSE). The bundled Cburnett chess artwork is separately available
+under GPL-3.0-or-later; see the [piece credits](solver/web/pieces/CREDITS.md) and
+[license text](solver/web/pieces/LICENSE).
 
 ## Roadmap
 
-1. Host the completed visual explorer and production tablebase.
+1. Publish the compact artifact and host the completed visual explorer.
 2. Package the methodology, audits, witness, and strategic report for publication.
 3. Obtain a designer/publisher pawn ruling and transcribe the complete 2025 rules.

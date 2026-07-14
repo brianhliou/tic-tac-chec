@@ -8,9 +8,9 @@ No previously published strong or weak solution, proof of the initial value,
 or public tablebase was found. This is a negative search result, not proof that
 no private or obscure solve exists.
 
-This project subsequently produced an independently audited strong W/L/D
-solution of the canonical original-edition rules: the initial position is a
-draw. See the
+This project subsequently produced a strong W/L/D solution of the canonical
+original-edition rules, checked exhaustively through a separately implemented
+pull audit: the initial position is a draw. See the
 [production summary](runs/production-2026-07-13/summary.md) for the exact
 result and reproduction record.
 

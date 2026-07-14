@@ -72,8 +72,9 @@ The engine also supports the less natural literal geometry reading
 capture diagonally toward the opponent. We should still obtain a
 designer/publisher ruling.
 
-The `outbound-only` sensitivity table was strongly solved and independently
-audited on 2026-07-13. Its initial value is also a draw, but it removes
+The `outbound-only` sensitivity table was strongly solved and checked through
+the same separate exhaustive audit path on 2026-07-13. Its initial value is
+also a draw, but it removes
 426,173,880 post-opening moves and changes W/L/D value at 16,529,908 dense
 post-opening positions. See the [run summary](runs/outbound-only-2026-07-13/summary.md)
 and [exact transition matrix](runs/outbound-only-2026-07-13/variant-comparison.md).
