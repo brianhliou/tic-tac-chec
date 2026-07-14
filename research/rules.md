@@ -1,6 +1,6 @@
 # Rules ledger
 
-Last reviewed: 2026-07-13.
+Last reviewed: 2026-07-14.
 
 ## Canonical target: Dream Green (1998 rules)
 
@@ -97,6 +97,8 @@ and [exact transition matrix](runs/outbound-only-2026-07-13/variant-comparison.m
 Wood Expressions' current product materials describe a materially changed
 game:
 
+- the product page calls these "updated tournament rules" and says action
+  begins within the first three moves;
 - the board says a pawn may move two squares on its first move;
 - the published board/product imagery does not state the original bouncing-pawn
   rule;
@@ -106,5 +108,6 @@ game:
 
 Sources: [publisher product
 page](https://woodexpressions.com/products/bobby-fischer-tic-tac-chec) and its
-official product imagery. This variant needs a complete rules transcription
-before implementation.
+official product imagery. The page exposes a "PDF Instructions" tab, but as of
+2026-07-14 the tab contains no document or download link. This variant needs a
+complete rules transcription before implementation.
