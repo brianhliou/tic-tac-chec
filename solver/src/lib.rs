@@ -4,6 +4,7 @@ pub mod checkpoint;
 pub mod graph;
 pub mod opening;
 pub mod parallel;
+pub mod probe;
 pub mod ranking;
 pub mod remoteness;
 pub mod retrograde;
@@ -172,6 +173,23 @@ impl Default for Rules {
 pub enum Move {
     Place { piece: PieceKind, to: Square },
     Move { from: Square, to: Square },
+}
+
+impl fmt::Display for Move {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Place { piece, to } => {
+                let symbol = match piece {
+                    PieceKind::Pawn => 'P',
+                    PieceKind::Knight => 'N',
+                    PieceKind::Bishop => 'B',
+                    PieceKind::Rook => 'R',
+                };
+                write!(formatter, "{symbol}@{to}")
+            }
+            Self::Move { from, to } => write!(formatter, "{from}-{to}"),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -609,6 +627,26 @@ mod tests {
             let square = Square::from_index(index).unwrap();
             assert_eq!(Square::new(square.file(), square.rank()), Some(square));
         }
+    }
+
+    #[test]
+    fn moves_have_compact_human_notation() {
+        assert_eq!(
+            Move::Place {
+                piece: PieceKind::Knight,
+                to: Square::new(2, 1).unwrap(),
+            }
+            .to_string(),
+            "N@c2"
+        );
+        assert_eq!(
+            Move::Move {
+                from: Square::new(0, 0).unwrap(),
+                to: Square::new(3, 3).unwrap(),
+            }
+            .to_string(),
+            "a1-d4"
+        );
     }
 
     #[test]
