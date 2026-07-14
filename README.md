@@ -51,6 +51,8 @@ The solve ran locally with byte-per-state tables and generated predecessors;
 the production summary records the exact resource and throughput measurements.
 The underlying design is in
 [`research/solver-architecture.md`](research/solver-architecture.md).
+The probe-to-web boundary is specified in
+[`research/hosted-explorer.md`](research/hosted-explorer.md).
 
 ## Reproduce
 
@@ -61,11 +63,12 @@ cargo run --manifest-path solver/Cargo.toml --release --bin rank_bench -- 100000
 cargo run --manifest-path solver/Cargo.toml --release --bin post_opening_solver -- verify research/runs/production-2026-07-13/post-opening-travel.ctb
 cargo run --manifest-path solver/Cargo.toml --release --bin post_opening_solver -- opening research/runs/production-2026-07-13/post-opening-travel.ctb 16
 cargo run --manifest-path solver/Cargo.toml --release --bin post_opening_solver -- verify-tablebase research/runs/production-2026-07-13/post-opening-travel.tb
+cargo run --manifest-path solver/Cargo.toml --release --bin tablebase_probe -- research/runs/production-2026-07-13/post-opening-travel.tb opening 0
 ```
 
 ## Roadmap
 
-1. Add a tablebase probe and extract a compact drawing-strategy witness.
+1. Add human-facing position input and extract a compact drawing-strategy witness from the probe.
 2. Build and host the visual position explorer.
 3. Extract representative optimal lines and strategic findings.
 4. Run the alternate returning-pawn interpretation as a sensitivity solve.

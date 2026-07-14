@@ -164,6 +164,23 @@ in the artifact.
 ## Updated status
 
 The canonical W/L/D result and decisive remoteness are now complete and
-audited, and a checksummed probe-ready artifact exists. The remaining product
-work is a position parser/editor, move-by-move tablebase probe, deterministic
-optimal policy, hosted explorer, and human-readable strategy analysis.
+audited, and a checksummed tablebase artifact exists.
+
+## Initial tablebase probe
+
+- Source commit: `8051e54cbc62551f0995361c340231c6d2af7498`
+- Command: `cargo run --manifest-path solver/Cargo.toml --release --bin tablebase_probe -- research/runs/production-2026-07-13/post-opening-travel.tb opening 0`
+- Initial value reproduced: **draw**
+- Legal moves generated: **64**
+- Result-preserving optimal moves: **64**
+
+The reusable probe ranks an engine position, reads its code, generates every
+legal move, ranks each child, and reports the outcome from the moving player's
+perspective. It separately marks moves that preserve W/L/D and moves satisfying
+the remoteness policy: shortest forced win, any drawing continuation, or
+longest resistance in a forced loss. Tests cover all three policies.
+
+The remaining product work is human-facing position input/editing, a compact
+drawing-strategy presentation, a hosted explorer, and human-readable strategic
+analysis. The current CLI accepts dense opening or post-opening IDs and serves
+as the backend behavior oracle for those interfaces.
