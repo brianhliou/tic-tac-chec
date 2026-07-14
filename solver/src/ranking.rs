@@ -12,6 +12,10 @@ use super::{
 pub const POST_OPENING_DOMAIN: u32 = 2_462_360_745;
 pub const LOCKED_OPENING_DOMAIN: u32 = 14_236_865;
 
+pub fn opening_ply_range(ply: u8) -> Option<std::ops::Range<u32>> {
+    (ply <= 5).then(|| OPENING_OFFSETS[ply as usize]..OPENING_OFFSETS[ply as usize + 1])
+}
+
 const PIECES: [Piece; 8] = [
     Piece {
         color: Color::White,
@@ -792,6 +796,20 @@ mod tests {
         assert_eq!(SUBSET_OFFSETS[256], POST_OPENING_DOMAIN);
         assert_eq!(OPENING_OFFSETS[6], LOCKED_OPENING_DOMAIN);
         assert_eq!(PAIR_BLOCK_OFFSETS[24], 536);
+    }
+
+    #[test]
+    fn opening_ply_ranges_partition_the_domain() {
+        let expected = [1, 64, 3_840, 80_640, 1_572_480, 12_579_840];
+        let mut end = 0;
+        for (ply, expected_length) in expected.into_iter().enumerate() {
+            let range = opening_ply_range(ply as u8).unwrap();
+            assert_eq!(range.start, end);
+            assert_eq!(range.len(), expected_length);
+            end = range.end;
+        }
+        assert_eq!(end, LOCKED_OPENING_DOMAIN);
+        assert!(opening_ply_range(6).is_none());
     }
 
     #[test]

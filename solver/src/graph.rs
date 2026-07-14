@@ -5,8 +5,8 @@
 //! compare the two implementations before this kernel is used by the solver.
 
 use crate::ranking::{
-    rank_post_opening, swap_sides_and_rotate, unrank_post_opening, PostOpeningId,
-    POST_OPENING_DOMAIN,
+    rank_opening, rank_post_opening, swap_sides_and_rotate, unrank_opening, unrank_post_opening,
+    OpeningId, PostOpeningId, POST_OPENING_DOMAIN,
 };
 use crate::retrograde::GameGraph;
 use crate::{
@@ -53,6 +53,32 @@ impl GameGraph for PostOpeningGraph {
             |parent| emit(parent.get()),
         );
     }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum OpeningChild {
+    Opening(OpeningId),
+    PostOpening(PostOpeningId),
+}
+
+pub fn for_each_opening_successor(
+    id: OpeningId,
+    rules: Rules,
+    mut emit: impl FnMut(OpeningChild),
+) -> usize {
+    let position = unrank_opening(id);
+    for_each_legal_move(&position, rules, |action| {
+        let child = position.play_unchecked(action);
+        if child.opening_complete() {
+            emit(OpeningChild::PostOpening(
+                rank_post_opening(&child).expect("unlocked opening child is rankable"),
+            ));
+        } else {
+            emit(OpeningChild::Opening(
+                rank_opening(&child).expect("locked opening child is rankable"),
+            ));
+        }
+    })
 }
 
 /// Emit every legal action without allocating and return the action count.
@@ -568,7 +594,9 @@ fn square(index: u8) -> Square {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ranking::{normalize_player_to_move, POST_OPENING_DOMAIN};
+    use crate::ranking::{
+        normalize_player_to_move, rank_opening, LOCKED_OPENING_DOMAIN, POST_OPENING_DOMAIN,
+    };
     use std::collections::HashSet;
 
     const RULES: [Rules; 3] = [
@@ -627,6 +655,35 @@ mod tests {
                 .collect();
             let mut actual = HashSet::new();
             let emitted = for_each_successor(id, Rules::default(), |child| {
+                actual.insert(child);
+            });
+            assert_eq!(emitted, actual.len(), "duplicate edge at sample {sample}");
+            assert_eq!(actual, expected, "successor mismatch at sample {sample}");
+        }
+    }
+
+    #[test]
+    fn opening_successor_ids_match_checked_reference_edges() {
+        let mut random = 0x082e_fa98_ec4e_6c89_u64;
+        for sample in 0..20_000 {
+            random = next_random(random);
+            let id = OpeningId::new((random % LOCKED_OPENING_DOMAIN as u64) as u32).unwrap();
+            let position = unrank_opening(id);
+
+            let expected: HashSet<_> = position
+                .legal_moves(Rules::default())
+                .into_iter()
+                .map(|action| {
+                    let child = position.play(action, Rules::default()).unwrap();
+                    if child.opening_complete() {
+                        OpeningChild::PostOpening(rank_post_opening(&child).unwrap())
+                    } else {
+                        OpeningChild::Opening(rank_opening(&child).unwrap())
+                    }
+                })
+                .collect();
+            let mut actual = HashSet::new();
+            let emitted = for_each_opening_successor(id, Rules::default(), |child| {
                 actual.insert(child);
             });
             assert_eq!(emitted, actual.len(), "duplicate edge at sample {sample}");

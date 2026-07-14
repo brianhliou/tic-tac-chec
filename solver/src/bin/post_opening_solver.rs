@@ -3,6 +3,7 @@ use std::path::Path;
 use std::time::Instant;
 
 use tic_tac_chec::graph::PostOpeningGraph;
+use tic_tac_chec::opening::{audit_opening, solve_opening};
 use tic_tac_chec::parallel::{audit_parallel, ParallelState};
 use tic_tac_chec::Rules;
 
@@ -22,6 +23,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "init" => initialize(&graph, rules, path, threads),
         "verify" => verify(&graph, rules, path),
         "audit" => audit(&graph, rules, path, threads),
+        "opening" => opening(&graph, rules, path, threads),
         "propagate" => {
             let checkpoint_every = argument(&arguments, 4, 5) as u64;
             if checkpoint_every == 0 {
@@ -31,6 +33,43 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
         _ => usage(),
     }
+}
+
+fn opening(
+    graph: &PostOpeningGraph,
+    rules: Rules,
+    path: impl AsRef<Path>,
+    threads: usize,
+) -> Result<(), Box<dyn Error>> {
+    println!("phase = opening");
+    println!("threads = {threads}");
+    let state = ParallelState::load(path, graph, rules.stable_tag())?;
+    if !state.frontier().is_empty() {
+        return Err("post-opening fixpoint must be complete".into());
+    }
+    let post = state.finish()?;
+    let start = Instant::now();
+    let solution = solve_opening(&post, rules, threads)?;
+    let solve_elapsed = start.elapsed();
+    for layer in solution.layers().iter().rev() {
+        println!(
+            "ply={} states={} edges={} wins={} losses={} draws={}",
+            layer.ply, layer.states, layer.edges, layer.wins, layer.losses, layer.draws
+        );
+    }
+    println!("initial_value = {:?}", solution.initial_value());
+    println!("opening_solve_seconds = {:.6}", solve_elapsed.as_secs_f64());
+
+    let audit_start = Instant::now();
+    let audited = audit_opening(&solution, &post, rules, threads)?;
+    if audited != *solution.layers() {
+        return Err("opening audit layer counts differ from solve".into());
+    }
+    println!(
+        "opening_audit_seconds = {:.6}",
+        audit_start.elapsed().as_secs_f64()
+    );
+    Ok(())
 }
 
 fn audit(
@@ -199,7 +238,7 @@ fn argument(arguments: &[String], index: usize, default: usize) -> usize {
 
 fn usage() -> ! {
     eprintln!(
-        "usage:\n  post_opening_solver init <checkpoint.ctb> [threads] [--pawn=travel|outbound|opponent]\n  post_opening_solver verify <checkpoint.ctb> [--pawn=travel|outbound|opponent]\n  post_opening_solver propagate <checkpoint.ctb> [threads] [checkpoint-every-waves] [--pawn=travel|outbound|opponent]\n  post_opening_solver audit <checkpoint.ctb> [threads] [--pawn=travel|outbound|opponent]"
+        "usage:\n  post_opening_solver init <checkpoint.ctb> [threads] [--pawn=travel|outbound|opponent]\n  post_opening_solver verify <checkpoint.ctb> [--pawn=travel|outbound|opponent]\n  post_opening_solver propagate <checkpoint.ctb> [threads] [checkpoint-every-waves] [--pawn=travel|outbound|opponent]\n  post_opening_solver audit <checkpoint.ctb> [threads] [--pawn=travel|outbound|opponent]\n  post_opening_solver opening <checkpoint.ctb> [threads] [--pawn=travel|outbound|opponent]"
     );
     std::process::exit(2)
 }
