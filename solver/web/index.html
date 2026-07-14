@@ -1,102 +1,139 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Tic Tac Chec Tablebase</title>
-  <style>
-    :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; background: #10130f; color: #eef2e8; }
-    * { box-sizing: border-box; }
-    body { margin: 0; min-height: 100vh; background: radial-gradient(circle at 20% 0%, #283226 0, #151a14 38%, #0d100c 100%); }
-    main { width: min(1120px, calc(100% - 32px)); margin: 0 auto; padding: 40px 0 64px; }
-    header { display: flex; justify-content: space-between; gap: 24px; align-items: end; margin-bottom: 28px; }
-    h1 { margin: 0; font-family: Georgia, serif; font-size: clamp(32px, 5vw, 58px); font-weight: 500; letter-spacing: -0.04em; }
-    .eyebrow { color: #a5b69a; text-transform: uppercase; letter-spacing: .16em; font-size: 11px; margin-bottom: 8px; }
-    .status { color: #b9c5b1; text-align: right; font-size: 13px; }
-    .layout { display: grid; grid-template-columns: minmax(320px, 470px) minmax(320px, 1fr); gap: 36px; align-items: start; }
-    .panel { background: rgba(27, 33, 25, .82); border: 1px solid #3b4736; border-radius: 18px; padding: 22px; box-shadow: 0 24px 70px rgba(0,0,0,.25); }
-    .summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
-    .value { font-family: Georgia, serif; font-size: 28px; }
-    .value.Draw { color: #d5bf78; } .value.Win { color: #8dd6a0; } .value.Loss { color: #e58b78; }
-    .meta { color: #aab5a3; font-size: 12px; line-height: 1.5; text-align: right; }
-    .board-wrap { display: grid; grid-template-columns: 20px 1fr; grid-template-rows: 1fr 20px; gap: 8px; }
-    .ranks, .files { display: grid; color: #84917c; font-size: 11px; text-align: center; }
-    .ranks { grid-template-rows: repeat(4, 1fr); align-items: center; }
-    .files { grid-template-columns: repeat(4, 1fr); grid-column: 2; align-items: center; }
-    .board { grid-column: 2; display: grid; grid-template-columns: repeat(4, 1fr); aspect-ratio: 1; border: 2px solid #66735e; border-radius: 8px; overflow: hidden; }
-    .square { position: relative; display: grid; place-items: center; font-family: Georgia, serif; font-size: clamp(34px, 7vw, 64px); }
-    .square.light { background: #d5d0b4; color: #20261d; } .square.dark { background: #748268; color: #10140e; }
-    .piece.black { color: #151913; text-shadow: 0 1px #a5ad99; } .piece.white { color: #fffdf0; text-shadow: 0 2px 2px #222; }
-    .direction { position: absolute; right: 6px; bottom: 3px; font: 700 14px system-ui; opacity: .68; }
-    .controls { display: flex; gap: 9px; margin-top: 18px; }
-    button { border: 1px solid #53604d; background: #273023; color: #edf1e8; border-radius: 9px; padding: 9px 13px; cursor: pointer; }
-    button:hover { background: #34402f; } button:disabled { opacity: .38; cursor: default; }
-    .history { margin-top: 13px; min-height: 20px; color: #9eaa97; font-size: 12px; line-height: 1.7; }
-    .moves-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
-    h2 { margin: 0; font-size: 18px; font-weight: 600; } .count { color: #87917f; font-size: 12px; }
-    .moves { display: grid; gap: 8px; max-height: 670px; overflow: auto; padding-right: 4px; }
-    .move { width: 100%; padding: 12px 13px; display: grid; grid-template-columns: 70px 1fr auto; gap: 10px; align-items: center; text-align: left; background: #20271d; }
-    .move.optimal { border-color: #8fa764; background: #293323; }
-    .notation { font: 650 14px ui-monospace, monospace; } .result { font-size: 13px; color: #bdc7b7; }
-    .badge { border-radius: 999px; padding: 3px 8px; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; background: #46543e; color: #dfe9d8; }
-    .badge.throw { background: #593c35; color: #f1c5bc; }
-    .loading, .error { padding: 30px; text-align: center; color: #b9c5b1; }
-    @media (max-width: 780px) { header { align-items: start; flex-direction: column; } .status { text-align: left; } .layout { grid-template-columns: 1fr; } .moves { max-height: none; } }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tic Tac Chec, Solved — Interactive Tablebase Explorer</title>
+<meta name="description" content="Explore the strongly solved original Tic Tac Chec game. Every legal move is ranked by result with exact distance for forced wins and losses.">
+<style>
+  :root {
+    --ink:#1f2328; --muted:#6b7280; --line:#e7e7ea; --accent:#d98a2b;
+    --win:#2e7d32; --winbg:#eaf4ea; --loss:#c0392b; --lossbg:#fbecea;
+    --draw:#6b7280; --drawbg:#f1f2f4; --board:#f3ead2; --board2:#e7d8b5;
+    --board-line:#9c8856; --select:#f1c76d; --target:rgba(46,125,50,.68);
+  }
+  * { box-sizing:border-box; }
+  html, body { height:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; color:var(--ink);
+         margin:0; padding:10px 16px; line-height:1.5; display:flex; flex-direction:column; gap:8px; overflow:hidden; background:#fff; }
+  button { font:inherit; }
+  .site-header { flex:0 0 auto; display:flex; align-items:center; gap:4px 14px; flex-wrap:wrap; }
+  .site-header h1 { margin:0; font-size:1.22rem; letter-spacing:-.01em; }
+  .tagline { color:var(--muted); font-size:.86rem; }
+  .hlinks { margin-left:auto; display:flex; align-items:center; gap:16px; font-size:.86rem; white-space:nowrap; }
+  .hlinks a, .navbtn { color:var(--accent); text-decoration:none; font-weight:600; }
+  .hlinks a:hover, .navbtn:hover { text-decoration:underline; }
+  .navbtn { background:none; border:0; padding:0; cursor:pointer; }
+
+  .main { flex:1 1 auto; min-height:0; display:flex; gap:24px; align-items:stretch; justify-content:center; }
+  .left { flex:0 1 auto; min-width:0; min-height:0; display:flex; align-items:center; justify-content:center; }
+  .boardbox { width:min(680px,calc(100vh - 178px)); min-width:320px; display:grid;
+              grid-template-rows:auto minmax(0,1fr) auto; gap:9px; min-height:0; }
+  .tray { min-height:60px; display:flex; align-items:center; justify-content:center; gap:8px; padding:6px 12px;
+          border:1.5px solid #e6e2d6; border-radius:12px; background:#f8f5ec; position:relative; }
+  .tray.active { border-color:var(--accent); box-shadow:0 0 0 3px rgba(217,138,43,.15); }
+  .tray-label { position:absolute; left:12px; color:#9a8a62; font-size:.66rem; font-weight:700;
+                text-transform:uppercase; letter-spacing:.04em; }
+  .hand-piece { width:46px; height:46px; display:grid; place-items:center; border:1px solid #ded7c5;
+                background:#fffdf8; border-radius:9px; font:31px Georgia,serif; cursor:pointer; box-shadow:0 2px 5px rgba(58,37,12,.08); }
+  .hand-piece:hover, .hand-piece.selected { outline:3px solid rgba(217,138,43,.38); }
+  .hand-empty { color:#b7ad96; font-size:.78rem; }
+  .board-frame { min-height:0; display:grid; grid-template-columns:20px 1fr; grid-template-rows:1fr 20px; gap:7px; place-self:center; width:100%; }
+  .ranks,.files { display:grid; color:#91866e; font-size:.7rem; text-align:center; }
+  .ranks { grid-template-rows:repeat(4,1fr); align-items:center; }
+  .files { grid-template-columns:repeat(4,1fr); grid-column:2; align-items:center; }
+  .board { grid-column:2; display:grid; grid-template-columns:repeat(4,1fr); aspect-ratio:1;
+           border:3px solid var(--board-line); background:var(--board-line); gap:2px; box-shadow:0 14px 32px rgba(42,34,18,.18); }
+  .square { border:0; border-radius:0; padding:0; position:relative; display:grid; place-items:center;
+            background:var(--board); cursor:pointer; min-width:0; min-height:0; }
+  .square.alt { background:var(--board2); }
+  .square:hover { filter:brightness(1.025); }
+  .square.selected { background:var(--select); }
+  .square.target::after { content:""; position:absolute; width:18%; aspect-ratio:1; border-radius:50%; background:var(--target); z-index:1; }
+  .piece { width:76%; height:76%; display:grid; place-items:center; border-radius:14%; z-index:2;
+           font:clamp(42px,9vh,82px) Georgia,serif; line-height:1; user-select:none; }
+  .piece.white { color:#5a3d1d; background:#fffaf0; border:2px solid #b59c69; text-shadow:0 1px #fff; }
+  .piece.black { color:#f4f1e9; background:#3b4149; border:2px solid #20252d; transform:rotate(180deg); }
+  .direction { position:absolute; right:5px; bottom:1px; font:700 14px system-ui; opacity:.7; }
+
+  .panel { flex:0 0 370px; min-width:300px; display:flex; flex-direction:column; min-height:0;
+           border:1px solid var(--line); border-radius:12px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.05); }
+  .verdict { flex:0 0 auto; padding:12px 16px; font-weight:700; font-size:1.05rem; display:flex;
+             align-items:baseline; gap:8px; border-left:5px solid var(--draw); }
+  .verdict small { font-weight:500; color:var(--muted); font-size:.8rem; }
+  .verdict.Win { background:var(--winbg); border-left-color:var(--win); }
+  .verdict.Loss { background:var(--lossbg); border-left-color:var(--loss); }
+  .verdict.Draw { background:var(--drawbg); border-left-color:var(--draw); }
+  .controls { flex:0 0 auto; display:flex; gap:6px; padding:7px 12px; border-top:1px solid #eee; background:#fbfaf6; }
+  .controls button { padding:3px 10px; border:1px solid #d4d4d8; background:#fff; border-radius:7px; cursor:pointer; }
+  .controls button:hover { background:#f3f3f3; } .controls button:disabled { opacity:.35; cursor:default; }
+  .position-id { margin-left:auto; align-self:center; color:#9aa0a6; font:11px ui-monospace,monospace; }
+  .secthdr { flex:0 0 auto; font-size:.68rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+             color:#9a8a62; padding:9px 14px 4px; border-top:1px solid #eee; }
+  .line { flex:0 1 28%; min-height:42px; overflow-y:auto; padding:0 0 6px; }
+  .lrow { display:grid; grid-template-columns:30px 1fr 1fr; gap:4px; align-items:center; padding:1px 12px; }
+  .lnum { color:#9aa0a6; font-variant-numeric:tabular-nums; font-size:.8rem; }
+  .ply { font: .86rem ui-monospace,Menlo,monospace; padding:2px 7px; border:0; border-radius:6px; background:transparent; text-align:left; cursor:pointer; }
+  .ply:hover { background:#efe9da; } .ply.cur { background:var(--accent); color:#fff; }
+  .empty-line { color:#b9b3a4; padding:4px 14px; font-size:.86rem; }
+  .moves { flex:1 1 auto; min-height:0; overflow-y:auto; }
+  .grouphdr { font-size:.68rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:9px 16px 3px; }
+  .grouphdr.Win { color:var(--win); } .grouphdr.Loss { color:var(--loss); } .grouphdr.Draw { color:var(--draw); }
+  .move { width:100%; border:0; border-bottom:1px solid #f1f1f3; background:#fff; display:flex;
+          align-items:center; justify-content:space-between; gap:10px; padding:7px 16px; cursor:pointer; text-align:left; }
+  .move:hover { background:#faf7ef; }
+  .mv { font:.92rem ui-monospace,Menlo,monospace; }
+  .badge { font-size:.76rem; font-weight:700; padding:2px 9px; border-radius:11px; min-width:58px; text-align:center; }
+  .badge.Win { background:var(--win); color:#fff; } .badge.Loss { background:var(--loss); color:#fff; }
+  .badge.Draw { background:#d7dade; color:#333; } .star { color:var(--accent); margin-left:5px; }
+  .loading,.error { padding:24px; color:var(--muted); text-align:center; }
+
+  .modal { position:fixed; inset:0; background:rgba(20,22,26,.5); display:flex; align-items:center; justify-content:center; z-index:50; padding:20px; }
+  .modal[hidden] { display:none; }
+  .modal-card { position:relative; background:#fff; width:550px; max-width:100%; max-height:86vh; overflow-y:auto;
+                border-radius:16px; padding:26px 30px; box-shadow:0 24px 70px rgba(0,0,0,.32); line-height:1.65; }
+  .modal-card h2 { font-size:1.35rem; margin:0 30px 4px 0; } .lead { color:var(--muted); margin:0 0 18px; }
+  .modal-card h3 { font-size:1rem; margin:20px 0 6px; } .modal-card p { margin:0 0 12px; color:#2c2f35; }
+  .modal-card code { font-family:ui-monospace,Menlo,monospace; background:#f1f0ec; padding:1px 5px; border-radius:5px; }
+  .modal-close { position:absolute; top:14px; right:16px; width:30px; height:30px; border:0; border-radius:8px; background:#f1f0ec; cursor:pointer; }
+  .legend { display:flex; gap:18px; font-size:.9rem; margin:4px 0 14px; }.legend span{display:flex;align-items:center;gap:6px}.legend i{width:12px;height:12px;border-radius:3px}.legend .w{background:var(--win)}.legend .d{background:#c7cbd1}.legend .l{background:var(--loss)}
+  @media (max-width:880px),(max-height:650px) { body{height:auto;overflow:auto}.main{flex-wrap:wrap}.left{flex-basis:100%}.panel{flex-basis:100%;max-height:none}.boardbox{width:min(520px,92vw)}.moves{max-height:55vh}.tray-label{position:static}.site-header{align-items:flex-start}.hlinks{margin-left:0;width:100%} }
+</style>
 </head>
 <body>
-<main>
-  <header>
-    <div><div class="eyebrow">Perfect-play explorer</div><h1>Tic Tac Chec</h1></div>
-    <div class="status">Original Dream Green rules<br>Travel-direction pawn captures</div>
-  </header>
-  <div class="layout">
-    <section class="panel" id="game"><div class="loading">Loading tablebase position…</div></section>
-    <section class="panel"><div class="moves-head"><h2>Legal moves</h2><span class="count" id="count"></span></div><div class="moves" id="moves"><div class="loading">Waiting for position…</div></div></section>
-  </div>
+<header class="site-header">
+  <h1>Tic Tac Chec, solved</h1>
+  <span class="tagline">A 4×4 alignment game with chess movement — every move ranked.</span>
+  <nav class="hlinks"><button class="navbtn" id="howBtn">How it works</button><a href="https://github.com/brianhliou/tic-tac-chec">GitHub</a><a href="https://brianhliou.com/">Brian Liou</a></nav>
+</header>
+<main class="main">
+  <section class="left"><div class="boardbox"><div class="tray" id="blackHand"></div><div class="board-frame"><div class="ranks"><span>4</span><span>3</span><span>2</span><span>1</span></div><div class="board" id="board"></div><div class="files"><span>a</span><span>b</span><span>c</span><span>d</span></div></div><div class="tray" id="whiteHand"></div></div></section>
+  <aside class="panel"><div class="verdict Draw" id="verdict">Loading…</div><div class="controls"><button id="reset" title="Reset">↺ Reset</button><button id="back" title="Step back">◀</button><button id="fwd" title="Step forward">▶</button><span class="position-id" id="positionId"></span></div><div class="secthdr">Moves played</div><div class="line" id="history"></div><div class="secthdr">Tablebase — every move ranked</div><div class="moves" id="moves"><div class="loading">Loading tablebase position…</div></div></aside>
 </main>
+<div class="modal" id="howModal" hidden><article class="modal-card"><button class="modal-close" id="howClose">×</button><h2>Tic Tac Chec, solved</h2><p class="lead">The original 4×4 Dream Green game, played against a complete tablebase.</p><h3>What this is</h3><p>Tic Tac Chec uses one pawn, knight, bishop, and rook per player. Each player places three pieces before movement unlocks; captures return pieces to their owner's hand. Align all four pieces in a row, column, or long diagonal to win.</p><p>Under the canonical original rules, perfect play is a <strong>draw</strong>. This explorer covers 2,462,360,745 normalized post-opening positions plus all 14,236,865 opening positions.</p><h3>How to read it</h3><div class="legend"><span><i class="w"></i>winning</span><span><i class="d"></i>drawing</span><span><i class="l"></i>losing</span></div><p>The verdict describes the player to move. Legal moves are ranked best first. Forced wins choose the shortest line; forced losses choose the longest resistance. Draws have no finite distance. A star marks a remoteness-optimal move.</p><h3>Move notation</h3><p><code>N@c2</code> places a knight on c2; <code>a1-a4</code> moves the piece from a1 to a4. Pawn arrows show current travel direction after reversals.</p><h3>Rules interpretation</h3><p>This table uses travel-direction pawn captures: after reversing at an edge, a pawn's capture diagonals reverse with it. Infinite non-winning play is a draw.</p></article></div>
 <script>
-  let path = [];
-  const glyphs = { Pawn: '●', Knight: '♞', Bishop: '♝', Rook: '♜' };
-  const esc = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const glyph={White:{Pawn:'♙',Knight:'♘',Bishop:'♗',Rook:'♖'},Black:{Pawn:'♟',Knight:'♞',Bishop:'♝',Rook:'♜'}};
+const letter={Pawn:'P',Knight:'N',Bishop:'B',Rook:'R'};
+let line=[],cursor=0,data=null,selectedHand=null,selectedSource=null;
+const esc=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const path=()=>line.slice(0,cursor).map(step=>step.index);
 
-  async function load() {
-    document.getElementById('moves').innerHTML = '<div class="loading">Probing…</div>';
-    try {
-      const response = await fetch(`/api/probe?path=${path.join(',')}`);
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Probe failed');
-      render(data);
-    } catch (error) {
-      document.getElementById('game').innerHTML = `<div class="error">${esc(error.message)}</div>`;
-      document.getElementById('moves').innerHTML = '';
-    }
-  }
-
-  function render(data) {
-    const squares = [];
-    for (let rank = 3; rank >= 0; rank--) for (let file = 0; file < 4; file++) {
-      const index = rank * 4 + file, piece = data.board[index], dark = (file + rank) % 2 === 0;
-      const content = piece ? `<span class="piece ${piece.color.toLowerCase()}">${glyphs[piece.piece]}</span>${piece.direction ? `<span class="direction">${piece.direction === 'up' ? '↑' : '↓'}</span>` : ''}` : '';
-      squares.push(`<div class="square ${dark ? 'dark' : 'light'}">${content}</div>`);
-    }
-    const distance = data.distance == null ? 'No finite distance' : `${data.distance} ${data.distance === 1 ? 'ply' : 'plies'}`;
-    document.getElementById('game').innerHTML = `
-      <div class="summary"><div><div class="eyebrow">${esc(data.sideToMove)} to move</div><div class="value ${data.value}">${esc(data.value)}</div></div><div class="meta">${distance}<br>${esc(data.position)}</div></div>
-      <div class="board-wrap"><div class="ranks"><span>4</span><span>3</span><span>2</span><span>1</span></div><div class="board">${squares.join('')}</div><div class="files"><span>a</span><span>b</span><span>c</span><span>d</span></div></div>
-      <div class="controls"><button id="back" ${path.length ? '' : 'disabled'}>← Back</button><button id="reset" ${path.length ? '' : 'disabled'}>Reset</button></div>
-      <div class="history">${data.history.length ? data.history.map((move, i) => `${i + 1}. ${esc(move)}`).join(' · ') : 'Empty board'}</div>`;
-    document.getElementById('back').onclick = () => { path.pop(); load(); };
-    document.getElementById('reset').onclick = () => { path = []; load(); };
-    document.getElementById('count').textContent = `${data.moves.length} moves · ${data.moves.filter(m => m.optimal).length} optimal`;
-    document.getElementById('moves').innerHTML = data.moves.map(move => {
-      const distance = move.distance == null ? 'Draw' : `${move.result} in ${move.distance}`;
-      const badge = move.optimal ? '<span class="badge">Optimal</span>' : move.preservesResult ? '<span class="badge">Preserves</span>' : '<span class="badge throw">Throws</span>';
-      return `<button class="move ${move.optimal ? 'optimal' : ''}" data-index="${move.index}"><span class="notation">${esc(move.notation)}</span><span class="result">${esc(distance)}</span>${badge}</button>`;
-    }).join('') || '<div class="loading">Terminal position</div>';
-    document.querySelectorAll('.move').forEach(button => button.onclick = () => { path.push(Number(button.dataset.index)); load(); });
-  }
-  load();
+async function load(){selectedHand=null;selectedSource=null;document.getElementById('moves').innerHTML='<div class="loading">Probing…</div>';try{const response=await fetch(`/api/probe?path=${path().join(',')}`);const next=await response.json();if(!response.ok)throw new Error(next.error||'Probe failed');data=next;render()}catch(error){document.getElementById('moves').innerHTML=`<div class="error">${esc(error.message)}</div>`}}
+function play(move){line=line.slice(0,cursor);line.push({index:move.index,notation:move.notation});cursor++;load()}
+function outcomeRank(value){return value==='Win'?0:value==='Draw'?1:2}
+function sortedMoves(){return [...data.moves].sort((a,b)=>outcomeRank(a.result)-outcomeRank(b.result)||(a.result==='Loss'?(b.distance||0)-(a.distance||0):(a.distance||0)-(b.distance||0))||a.notation.localeCompare(b.notation))}
+function render(){renderVerdict();renderHands();renderBoard();renderHistory();renderMoves();document.getElementById('positionId').textContent=data.position;document.getElementById('reset').disabled=cursor===0;document.getElementById('back').disabled=cursor===0;document.getElementById('fwd').disabled=cursor===line.length;}
+function renderVerdict(){const v=document.getElementById('verdict'),distance=data.distance==null?'no finite distance':`${data.distance} ${data.distance===1?'ply':'plies'}`;v.className=`verdict ${data.value}`;v.innerHTML=`${esc(data.sideToMove)} to move: ${esc(data.value)} <small>${distance}</small>`}
+function renderHands(){renderHand('blackHand','Black');renderHand('whiteHand','White')}
+function renderHand(id,color){const el=document.getElementById(id),active=data.sideToMove===color;el.className=`tray ${active?'active':''}`;const pieces=data.hands[color];el.innerHTML=`<span class="tray-label">${color} hand</span>${pieces.length?pieces.map(piece=>`<button class="hand-piece ${selectedHand===piece?'selected':''}" data-piece="${piece}">${glyph[color][piece]}</button>`).join(''):'<span class="hand-empty">No pieces in hand</span>'}`;el.querySelectorAll('.hand-piece').forEach(button=>button.onclick=()=>{if(!active)return;selectedHand=selectedHand===button.dataset.piece?null:button.dataset.piece;selectedSource=null;renderHands();renderBoard()})}
+function coord(index){return 'abcd'[index%4]+(Math.floor(index/4)+1)}
+function candidateTargets(){const targets=new Set;for(const move of data.moves){if(selectedHand&&move.notation.startsWith(letter[selectedHand]+'@'))targets.add(move.notation.slice(-2));if(selectedSource&&move.notation.startsWith(selectedSource+'-'))targets.add(move.notation.slice(-2))}return targets}
+function renderBoard(){const board=document.getElementById('board'),targets=candidateTargets(),html=[];for(let rank=3;rank>=0;rank--)for(let file=0;file<4;file++){const index=rank*4+file,square=coord(index),piece=data.board[index],selected=selectedSource===square,target=targets.has(square);html.push(`<button class="square ${(file+rank)%2?'alt':''} ${selected?'selected':''} ${target?'target':''}" data-square="${square}" data-index="${index}">${piece?`<span class="piece ${piece.color.toLowerCase()}">${glyph[piece.color][piece.piece]}${piece.direction?`<span class="direction">${piece.direction==='up'?'↑':'↓'}</span>`:''}</span>`:''}</button>`)}board.innerHTML=html.join('');board.querySelectorAll('.square').forEach(button=>button.onclick=()=>squareClick(button.dataset.square,Number(button.dataset.index)))}
+function squareClick(square,index){const target=data.moves.find(move=>selectedHand&&move.notation===letter[selectedHand]+'@'+square)||data.moves.find(move=>selectedSource&&move.notation===selectedSource+'-'+square);if(target){play(target);return}const piece=data.board[index];if(piece&&piece.color===data.sideToMove&&data.moves.some(move=>move.notation.startsWith(square+'-'))){selectedSource=selectedSource===square?null:square;selectedHand=null;renderHands();renderBoard()}else{selectedSource=null;selectedHand=null;renderHands();renderBoard()}}
+function renderHistory(){const el=document.getElementById('history');if(!line.length){el.innerHTML='<div class="empty-line">No moves yet</div>';return}let html='';for(let i=0;i<line.length;i+=2){html+=`<div class="lrow"><span class="lnum">${i/2+1}.</span>${[i,i+1].map(ply=>ply<line.length?`<button class="ply ${cursor===ply+1?'cur':''}" data-cursor="${ply+1}">${esc(line[ply].notation)}</button>`:'<span></span>').join('')}</div>`}el.innerHTML=html;el.querySelectorAll('.ply').forEach(button=>button.onclick=()=>{cursor=Number(button.dataset.cursor);load()})}
+function renderMoves(){const el=document.getElementById('moves'),moves=sortedMoves();if(!moves.length){el.innerHTML='<div class="loading">Terminal position</div>';return}let html='',group=null;for(const move of moves){if(move.result!==group){group=move.result;html+=`<div class="grouphdr ${group}">${group==='Win'?'Winning':group==='Draw'?'Drawing':'Losing'} moves</div>`}const score=move.distance==null?'draw':`${move.result.toLowerCase()} in ${move.distance}`;html+=`<button class="move" data-index="${move.index}"><span class="mv">${esc(move.notation)}${move.optimal?'<span class="star">★</span>':''}</span><span class="badge ${move.result}">${score}</span></button>`}el.innerHTML=html;el.querySelectorAll('.move').forEach(button=>button.onclick=()=>play(data.moves.find(move=>move.index===Number(button.dataset.index))))}
+document.getElementById('reset').onclick=()=>{line=[];cursor=0;load()};document.getElementById('back').onclick=()=>{if(cursor){cursor--;load()}};document.getElementById('fwd').onclick=()=>{if(cursor<line.length){cursor++;load()}};
+const modal=document.getElementById('howModal');document.getElementById('howBtn').onclick=()=>modal.hidden=false;document.getElementById('howClose').onclick=()=>modal.hidden=true;modal.onclick=event=>{if(event.target===modal)modal.hidden=true};document.addEventListener('keydown',event=>{if(event.key==='Escape')modal.hidden=true});load();
 </script>
 </body>
 </html>

@@ -7,7 +7,8 @@ use tic_tac_chec::probe::probe;
 use tic_tac_chec::ranking::{LOCKED_OPENING_DOMAIN, POST_OPENING_DOMAIN};
 use tic_tac_chec::tablebase::TablebaseArtifact;
 use tic_tac_chec::{
-    Move, PawnDirection, PieceKind, Position, ReturningPawnCapture, Rules, Square, BOARD_CELLS,
+    Color, Move, PawnDirection, Piece, PieceKind, Position, ReturningPawnCapture, Rules, Square,
+    BOARD_CELLS,
 };
 
 const INDEX_HTML: &str = include_str!("../../web/index.html");
@@ -177,7 +178,27 @@ fn probe_json(
             }
         }
     }
-    json.push_str("],\"history\":[");
+    json.push_str("],\"hands\":{");
+    for (color_index, color) in Color::ALL.into_iter().enumerate() {
+        if color_index != 0 {
+            json.push(',');
+        }
+        json.push_str(&json_string(&format!("{color:?}")));
+        json.push(':');
+        json.push('[');
+        let mut first = true;
+        for kind in PieceKind::ALL {
+            if position.piece_square(Piece { color, kind }).is_none() {
+                if !first {
+                    json.push(',');
+                }
+                json.push_str(&json_string(&format!("{kind:?}")));
+                first = false;
+            }
+        }
+        json.push(']');
+    }
+    json.push_str("},\"history\":[");
     for (index, action) in history.iter().enumerate() {
         if index != 0 {
             json.push(',');
@@ -283,7 +304,6 @@ fn usage() -> ! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tic_tac_chec::Color;
 
     #[test]
     fn path_parser_handles_empty_and_multiple_plies() {
