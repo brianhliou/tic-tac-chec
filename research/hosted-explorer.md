@@ -1,8 +1,9 @@
 # Hosted tablebase explorer boundary
 
 Status: implemented, published, and deployed at
-[`tic-tac-chec-production.up.railway.app`](https://tic-tac-chec-production.up.railway.app/).
-The preferred custom domain is reserved and awaits its DNS record.
+[`tic-tac-chec.brianhliou.com`](https://tic-tac-chec.brianhliou.com/).
+The custom domain is ownership-verified and serves a valid Railway-managed TLS
+certificate.
 
 ## Product behavior
 
@@ -103,5 +104,5 @@ rules.
    opening replay, absolute orientation, decisive distance, and terminal play.
 7. Completed: Railway build, startup validation, public health check, live
    empty-board probe, and production resource measurement.
-8. Pending: point the custom-domain CNAME at Railway and validate its TLS
-   certificate.
+8. Completed: custom-domain CNAME and ownership TXT propagation, Railway
+   verification, TLS issuance, and public HTTPS health check.
