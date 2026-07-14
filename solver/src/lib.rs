@@ -148,6 +148,15 @@ impl Rules {
     pub const ORIGINAL_TRAVEL_DIRECTION: Self = Self {
         returning_pawn_capture: ReturningPawnCapture::TravelDirection,
     };
+
+    /// Stable checkpoint identifier for the original rules plus pawn variant.
+    pub const fn stable_tag(self) -> u32 {
+        match self.returning_pawn_capture {
+            ReturningPawnCapture::OutboundOnly => 0x5454_4301,
+            ReturningPawnCapture::TowardOpponent => 0x5454_4302,
+            ReturningPawnCapture::TravelDirection => 0x5454_4303,
+        }
+    }
 }
 
 impl Default for Rules {
@@ -597,5 +606,13 @@ mod tests {
             let square = Square::from_index(index).unwrap();
             assert_eq!(Square::new(square.file(), square.rank()), Some(square));
         }
+    }
+
+    #[test]
+    fn checkpoint_rule_tags_are_stable_and_distinct() {
+        assert_eq!(Rules::ORIGINAL_OUTBOUND_ONLY.stable_tag(), 0x5454_4301);
+        assert_eq!(Rules::ORIGINAL_TOWARD_OPPONENT.stable_tag(), 0x5454_4302);
+        assert_eq!(Rules::ORIGINAL_TRAVEL_DIRECTION.stable_tag(), 0x5454_4303);
+        assert_eq!(Rules::default().stable_tag(), 0x5454_4303);
     }
 }

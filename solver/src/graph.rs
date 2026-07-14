@@ -6,11 +6,54 @@
 
 use crate::ranking::{
     rank_post_opening, swap_sides_and_rotate, unrank_post_opening, PostOpeningId,
+    POST_OPENING_DOMAIN,
 };
+use crate::retrograde::GameGraph;
 use crate::{
     initial_pawn_direction, Color, Move, PawnDirection, Piece, PieceKind, Position,
     ReturningPawnCapture, Rules, Square, BOARD_CELLS, BOARD_SIDE,
 };
+
+#[derive(Clone, Copy, Debug)]
+pub struct PostOpeningGraph {
+    rules: Rules,
+}
+
+impl PostOpeningGraph {
+    pub const fn new(rules: Rules) -> Self {
+        Self { rules }
+    }
+
+    pub const fn rules(self) -> Rules {
+        self.rules
+    }
+}
+
+impl GameGraph for PostOpeningGraph {
+    fn node_count(&self) -> u32 {
+        POST_OPENING_DOMAIN
+    }
+
+    fn is_terminal_loss(&self, node: u32) -> bool {
+        unrank_post_opening(PostOpeningId::new(node).expect("graph node is in range")).is_terminal()
+    }
+
+    fn for_each_successor(&self, node: u32, mut emit: impl FnMut(u32)) {
+        for_each_successor(
+            PostOpeningId::new(node).expect("graph node is in range"),
+            self.rules,
+            |child| emit(child.get()),
+        );
+    }
+
+    fn for_each_predecessor(&self, node: u32, mut emit: impl FnMut(u32)) {
+        for_each_predecessor(
+            PostOpeningId::new(node).expect("graph node is in range"),
+            self.rules,
+            |parent| emit(parent.get()),
+        );
+    }
+}
 
 /// Emit every legal action without allocating and return the action count.
 ///
@@ -679,6 +722,28 @@ mod tests {
                     );
                 }
             }
+        }
+    }
+
+    #[test]
+    fn post_opening_graph_adapter_preserves_dense_edges() {
+        let graph = PostOpeningGraph::new(Rules::default());
+        assert_eq!(graph.node_count(), POST_OPENING_DOMAIN);
+        assert_eq!(graph.rules(), Rules::default());
+
+        let mut random = 0xc0ac_29b7_c97c_50dd_u64;
+        for _ in 0..1_000 {
+            random = next_random(random);
+            let id = PostOpeningId::new((random % POST_OPENING_DOMAIN as u64) as u32).unwrap();
+            let mut expected = Vec::new();
+            for_each_successor(id, Rules::default(), |child| expected.push(child.get()));
+            let mut actual = Vec::new();
+            graph.for_each_successor(id.get(), |child| actual.push(child));
+            assert_eq!(actual, expected);
+            assert_eq!(
+                graph.is_terminal_loss(id.get()),
+                unrank_post_opening(id).is_terminal()
+            );
         }
     }
 
