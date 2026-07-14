@@ -61,6 +61,11 @@ checksummed witness is committed as
 with its scope and proof limitations documented in
 [`research/drawing-witness.md`](research/drawing-witness.md).
 
+The exact decisive-remoteness distribution, replay-audited longest win/loss
+examples, and critical choices on that drawing lasso are collected in the
+generated
+[`strategic report`](research/runs/production-2026-07-13/strategic-report.md).
+
 ## Reproduce
 
 ```sh
@@ -71,12 +76,12 @@ cargo run --manifest-path solver/Cargo.toml --release --bin post_opening_solver 
 cargo run --manifest-path solver/Cargo.toml --release --bin post_opening_solver -- opening research/runs/production-2026-07-13/post-opening-travel.ctb 16
 cargo run --manifest-path solver/Cargo.toml --release --bin post_opening_solver -- verify-tablebase research/runs/production-2026-07-13/post-opening-travel.tb
 cargo run --manifest-path solver/Cargo.toml --release --bin tablebase_probe -- research/runs/production-2026-07-13/post-opening-travel.tb opening 0
+cargo run --manifest-path solver/Cargo.toml --release --bin strategic_report -- research/runs/production-2026-07-13/post-opening-travel.tb research/runs/production-2026-07-13/strategic-report.md <source-commit>
 cargo run --manifest-path solver/Cargo.toml --release --bin tablebase_server -- research/runs/production-2026-07-13/post-opening-travel.tb 4173
 ```
 
 ## Roadmap
 
 1. Host the completed visual explorer and production tablebase.
-2. Extract representative decisive lines and strategic findings.
-3. Package the methodology, audits, witness, and artifacts for publication.
-4. Run the alternate returning-pawn interpretation as a sensitivity solve.
+2. Package the methodology, audits, witness, and strategic report for publication.
+3. Run the alternate returning-pawn interpretation as a sensitivity solve.

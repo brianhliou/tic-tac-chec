@@ -180,10 +180,9 @@ perspective. It separately marks moves that preserve W/L/D and moves satisfying
 the remoteness policy: shortest forced win, any drawing continuation, or
 longest resistance in a forced loss. Tests cover all three policies.
 
-The remaining product work is human-facing position input/editing, a compact
-drawing-strategy presentation, a hosted explorer, and human-readable strategic
-analysis. The current CLI accepts dense opening or post-opening IDs and serves
-as the backend behavior oracle for those interfaces.
+The CLI probe became the backend behavior oracle for the visual explorer and
+the later drawing and strategic-analysis artifacts. Remaining product work is
+hosting and publication rather than tablebase functionality.
 
 ## Deterministic drawing witness
 
@@ -222,3 +221,29 @@ the strong-solution proof; it supplies the full drawing policy by selecting a
 drawing child at every drawn position. See
 [`research/drawing-witness.md`](../../drawing-witness.md) for the precise
 semantics and artifact contract.
+
+## Strategic report
+
+- Extractor source commit: `ef5ee378e0653fb8eb8a0593147318bcfbc81e14`
+- Command: `cargo run --manifest-path solver/Cargo.toml --release --bin strategic_report -- research/runs/production-2026-07-13/post-opening-travel.tb research/runs/production-2026-07-13/strategic-report.md ef5ee378e0653fb8eb8a0593147318bcfbc81e14`
+- Post-opening maximum win remoteness: **41 plies**, 28 positions
+- Post-opening maximum loss remoteness: **40 plies**, 10 positions
+- Locked-opening maximum win remoteness: **39 plies**, 4 positions
+- Locked-opening maximum loss remoteness: **28 plies**, 6 positions
+- Representative principal-line replay audits: **passed**
+- Drawing-lasso replay audit: **passed**
+- Report SHA-256: `f6a5336f561430dce573453822be5b7107f7ddad183ccd38388383c87750ba34`
+
+The extractor scans every artifact byte sequentially to produce the exact
+remoteness histogram, then selects the lowest dense ID at each section/result
+maximum and follows a deterministic optimal policy. Checked move application
+replays all four principal variations to a terminal position at exactly the
+stored distance.
+
+The same run reconstructs the exact 32-ply-prefix/18-ply-cycle drawing lasso.
+Its earliest losing deviation appears at ply 10: eight moves retain the draw
+and one loses in four plies. Its narrowest observed defense is at ply 19, where
+only 3 of 18 legal moves draw and all 15 alternatives lose in two plies. These
+are illustrative choice points on one deterministic policy, not frequency
+claims or substitutes for the exhaustive tablebase proof. The complete report
+is [`strategic-report.md`](strategic-report.md).

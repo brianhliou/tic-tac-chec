@@ -84,9 +84,11 @@ generated-predecessor, and audit patterns needed at larger scale.
 
 ## Current recommendation
 
-Preserve the audited dense retrograde table as the source of truth. Build a
-probe and strategy witness on top of it, then run the alternate returning-pawn
-interpretation through the same pipeline as a sensitivity result. Forward
-search remains useful for extracting compact lines, but should be checked
-against table values because cycles make history-unsound transposition caching
-easy to get wrong.
+Preserve the audited dense retrograde table as the source of truth. The probe,
+drawing witness, visual explorer, and generated strategic report now form a
+complete presentation layer over it. The next research solve should run the
+alternate returning-pawn interpretation through the same pipeline as a
+sensitivity result; the next product milestone is hosting and publication.
+Forward search remains useful for extracting compact lines, but should always
+be checked against table values because cycles make history-unsound
+transposition caching easy to get wrong.

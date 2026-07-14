@@ -6,3 +6,4 @@ research/runs/**/*
 !research/runs/**/
 !research/runs/**/summary.md
 !research/runs/**/drawing-witness.json
+!research/runs/**/strategic-report.md
