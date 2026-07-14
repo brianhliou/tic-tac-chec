@@ -216,9 +216,9 @@ alternative, with 60 such alternatives in total and as many as 15 at one
 position. The selected action remains drawing at every step.
 
 This lasso is a compact perfect-play illustration, not a standalone proof
-against all deviations. The independently audited complete tablebase remains
-the strong-solution proof; it supplies the full drawing policy by selecting a
-drawing child at every drawn position. See
+against all deviations. The complete tablebase, checked through the separate
+exhaustive pull audit, remains the strong-solution proof; it supplies the full
+drawing policy by selecting a drawing child at every drawn position. See
 [`research/drawing-witness.md`](../../drawing-witness.md) for the precise
 semantics and artifact contract.
 
@@ -247,3 +247,36 @@ only 3 of 18 legal moves draw and all 15 alternatives lose in two plies. These
 are illustrative choice points on one deterministic policy, not frequency
 claims or substitutes for the exhaustive tablebase proof. The complete report
 is [`strategic-report.md`](strategic-report.md).
+
+## Compact publication artifact
+
+- Source commit: `9ed7b4403306b9ec5265302636fbb03568d30453`
+- Command: `cargo run --manifest-path solver/Cargo.toml --release --bin compact_tablebase -- pack research/runs/production-2026-07-13/post-opening-travel.tb research/runs/production-2026-07-13/post-opening-travel.ttb`
+- Rules tag: `0x54544303`
+- Source load and validation: **9.122703 seconds**
+- Compact encoding and atomic write: **3.623252 seconds**
+- Post-opening entries compared: **2,462,360,745**
+- Locked-opening entries compared: **14,236,865**
+- Post-opening decisive entries: **209,074,518**
+- Locked-opening decisive entries: **177,940**
+- Reload and exhaustive source comparison: **9.652849 seconds**
+- Compact verification-only reload: **1.247737 seconds**
+- File size: **485,862,535 bytes** (463 MiB)
+- Internal CRC-64/XZ: `0xbe44f17a62ec33e1`
+- SHA-256: `f80c1899e57941a2251ffa554645ad06e66d4e5fbd349b6d2b949efd2c526c53`
+
+The publication format stores a one-bit decisive-position bitmap, six-bit
+distance codes only for decisive positions, and a prefix-rank directory every
+512 positions. Draws need no distance payload. Lookup remains constant-time,
+and the in-memory artifact is 19.62% of the byte-per-position source size.
+
+The pack command reloaded the written artifact, validated its header, rules
+tag, dimensions, rank directory, padding, and CRC, then decoded and compared
+all **2,476,597,610** entries with the audited source table. No position value
+or decisive remoteness changed. The compact file is a deployment derivative;
+the original table remains the solve source of truth.
+
+The release server loaded this artifact successfully and reproduced the empty
+board as a draw with all 64 legal moves drawing. A single local warm probe took
+0.000699 seconds and returned 8,072 bytes; this is a smoke measurement, not a
+latency distribution.
