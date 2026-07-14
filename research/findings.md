@@ -2,11 +2,17 @@
 
 Last reviewed: 2026-07-13.
 
-## Solved status
+## Prior public solved status
 
-No published strong or weak solution, proof of the initial value, or public
-tablebase was found. This is a negative search result, not proof that no private
-or obscure solve exists.
+No previously published strong or weak solution, proof of the initial value,
+or public tablebase was found. This is a negative search result, not proof that
+no private or obscure solve exists.
+
+This project subsequently produced an independently audited strong W/L/D
+solution of the canonical original-edition rules: the initial position is a
+draw. See the
+[production summary](runs/production-2026-07-13/summary.md) for the exact
+result and reproduction record.
 
 The game is listed by GamesCrafters, but the current `GamesmanClassic` source is
 not a solution of the commercial 4×4 game. At commit
@@ -78,8 +84,9 @@ generated-predecessor, and audit patterns needed at larger scale.
 
 ## Current recommendation
 
-Do not begin with alpha-beta or proof-number search as the source of truth. A
-fast forward search may later find a candidate opening result, but cycles make
-history-unsound transposition caching easy to get wrong. First build the exact
-graph machinery and validate it on reduced games; then use a forward search
-only as a hypothesis generator or cross-check.
+Preserve the audited dense retrograde table as the source of truth. Build a
+probe and strategy witness on top of it, then run the alternate returning-pawn
+interpretation through the same pipeline as a sensitivity result. Forward
+search remains useful for extracting compact lines, but should be checked
+against table values because cycles make history-unsound transposition caching
+easy to get wrong.

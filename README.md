@@ -3,8 +3,11 @@
 A from-scratch effort to solve **Tic Tac Chec**, Don Green's 4×4 alignment
 game with chess movement and reusable captured pieces.
 
-The project is at the rules-engine stage. No game-theoretic result is claimed
-yet.
+The canonical original-edition game is **a draw under perfect play**. The full
+normalized post-opening W/L/D table and all six placement-only opening plies
+were solved and independently audited on 2026-07-13. Exact counts, timings,
+checkpoint checksum, and reproduction commands are in
+[`research/runs/production-2026-07-13/summary.md`](research/runs/production-2026-07-13/summary.md).
 
 ## Solve target
 
@@ -29,7 +32,7 @@ The 2025 Bobby Fischer reissue changes pawn movement and the capture-opening
 threshold. It is tracked as a separate variant, not mixed into the initial
 solve.
 
-## Current state-space bound
+## Solved state space
 
 There are exactly **1,174,226,049** board/hand arrangements before pawn
 direction, side to move, and opening history. Under the original bouncing-pawn
@@ -37,11 +40,14 @@ rules, the dense all-legal domain is **4,938,958,355** states before symmetry
 folding. This corrects the earlier rough estimate of 9.4 billion; the exact
 derivation is in [`research/state-space.md`](research/state-space.md).
 
-This is plausibly an in-memory strong solve on a 48–128 GB machine if we use a
-dense rank, generate predecessors rather than store all reverse edges, and
-control the retrograde frontier. Reachable-state enumeration is the next
-measurement; edge traffic, not the 2-bit value array, is likely to set the
-runtime. The researched implementation strategy and benchmark gates are in
+Player-to-move normalization reduces the post-opening domain to exactly
+**2,462,360,745** dense states. The audited table contains 184,895,598 wins,
+24,178,920 losses, and 2,253,286,227 draws. The placement-only opening adds
+14,236,865 states and evaluates backward to a draw at the empty board.
+
+The solve ran locally with byte-per-state tables and generated predecessors;
+the production summary records the exact resource and throughput measurements.
+The underlying design is in
 [`research/solver-architecture.md`](research/solver-architecture.md).
 
 ## Reproduce
@@ -50,12 +56,13 @@ runtime. The researched implementation strategy and benchmark gates are in
 cargo test --manifest-path solver/Cargo.toml
 cargo run --manifest-path solver/Cargo.toml --bin state-space
 cargo run --manifest-path solver/Cargo.toml --release --bin rank_bench -- 10000000
+cargo run --manifest-path solver/Cargo.toml --release --bin post_opening_solver -- verify research/runs/production-2026-07-13/post-opening-travel.ctb
+cargo run --manifest-path solver/Cargo.toml --release --bin post_opening_solver -- opening research/runs/production-2026-07-13/post-opening-travel.ctb 16
 ```
 
 ## Roadmap
 
-1. Freeze and test the rules variants.
-2. Implement exact rank/unrank and enumerate canonical reachable states.
-3. Validate move generation against an independent oracle.
-4. Prove the retrograde implementation on reduced closed games.
-5. Run and audit the full loopy solve; publish the result and tablebase probe.
+1. Add a tablebase probe and extract a compact drawing-strategy witness.
+2. Compute win/loss remoteness and representative optimal lines.
+3. Run the alternate returning-pawn interpretation as a sensitivity solve.
+4. Package the methodology and artifacts for publication.
