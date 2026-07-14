@@ -55,8 +55,10 @@ current canonical interpretation is nevertheless `travel-direction`:
 
 The second item is the clearest interpretive clue: "forward" naturally becomes
 the pawn's current facing after it reverses. `outbound-only` remains implemented
-as a sensitivity variant. A direct question to Don Green or the current
-publisher would supersede this provisional adjudication.
+as a sensitivity variant. Its separately audited solve is also a draw from the
+empty board, but 16,529,908 post-opening positions change W/L/D value. A direct
+question to Don Green or the current publisher would supersede this provisional
+adjudication.
 
 Sources: [Dream Green printable rules
 (PDF)](https://redcanoe.weebly.com/uploads/7/4/5/0/7450428/ttcwb2.pdf), [French
@@ -86,9 +88,11 @@ generated-predecessor, and audit patterns needed at larger scale.
 
 Preserve the audited dense retrograde table as the source of truth. The probe,
 drawing witness, visual explorer, and generated strategic report now form a
-complete presentation layer over it. The next research solve should run the
-alternate returning-pawn interpretation through the same pipeline as a
-sensitivity result; the next product milestone is hosting and publication.
-Forward search remains useful for extracting compact lines, but should always
-be checked against table values because cycles make history-unsound
-transposition caching easy to get wrong.
+complete presentation layer over it. The alternate returning-pawn
+interpretation has now completed through the same audited pipeline: it is also
+a draw, although 16,529,908 post-opening positions change W/L/D value. The next
+product milestone is hosting and publication; the next rules milestone is a
+designer/publisher ruling and complete 2025-edition transcription. Forward
+search remains useful for extracting compact lines, but should always be
+checked against table values because cycles make history-unsound transposition
+caching easy to get wrong.

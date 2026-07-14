@@ -27,8 +27,11 @@ The canonical target is the original Dream Green ruleset:
 
 The printed rules leave pawn captures while returning ambiguous. The current
 canonical interpretation makes captures follow the pawn's current travel
-direction; the engine preserves the no-return-capture reading as a sensitivity
-variant. See [`research/rules.md`](research/rules.md).
+direction. The no-return-capture reading has now also been strongly solved as a
+sensitivity variant: its empty board is still a draw, although 0.671303% of
+post-opening positions change W/L/D value. See
+[`research/rules.md`](research/rules.md) and the
+[`variant comparison`](research/runs/outbound-only-2026-07-13/variant-comparison.md).
 
 The 2025 Bobby Fischer reissue changes pawn movement and the capture-opening
 threshold. It is tracked as a separate variant, not mixed into the initial
@@ -87,4 +90,4 @@ cargo run --manifest-path solver/Cargo.toml --release --bin tablebase_server -- 
 
 1. Host the completed visual explorer and production tablebase.
 2. Package the methodology, audits, witness, and strategic report for publication.
-3. Run the alternate returning-pawn interpretation as a sensitivity solve.
+3. Obtain a designer/publisher pawn ruling and transcribe the complete 2025 rules.

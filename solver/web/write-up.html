@@ -111,7 +111,7 @@
   <p>After the opening, a turn either places an in-hand piece on any empty square or moves an on-board piece using its chess movement. Captured pieces are not eliminated; they return to their owner's hand and can be placed again later. Pawns move one square in their current direction, capture diagonally, and reverse direction when they reach either edge.</p>
 
   <h3>The pawn ambiguity</h3>
-  <p>The printed rules say that a pawn reverses direction and captures only when moving “forward,” but they do not diagram a returning capture. The canonical solve reads “forward” as the pawn's current facing, so its capture diagonals reverse with its travel direction. A detailed French transcription and an independent playable implementation support that reading. The stricter “outbound-only” interpretation remains a named, implemented sensitivity variant; its table has not yet been computed.</p>
+  <p>The printed rules say that a pawn reverses direction and captures only when moving “forward,” but they do not diagram a returning capture. The canonical solve reads “forward” as the pawn's current facing, so its capture diagonals reverse with its travel direction. A detailed French transcription and an independent playable implementation support that reading. The stricter “outbound-only” interpretation was solved separately as a sensitivity check.</p>
 
   <h2>What “solved” means</h2>
   <p>This is a <strong>strong solution</strong>, not only an opening verdict. The tablebase records win, loss, or draw for every position in the dense rules domain and gives exact distance to termination for every decisive position. A player with the table can play perfectly after any legal history.</p>
@@ -158,9 +158,10 @@ Drawing: a1-b2, d2-c2, c3-a2
 All 15 alternatives: loss in 2 plies</pre>
   <p>This is the character of the solved game: the global result is a draw, but maintaining it can demand precise tactical defense.</p>
 
-  <h2>Rules variants and next work</h2>
+  <h2>The sensitivity result</h2>
   <p>This table intentionally covers one ruleset: the original 1998 Dream Green edition with travel-direction pawn captures. It does not mix in the materially different 2025 Bobby Fischer reissue. Future variants will use distinct rules tags and separate artifacts so a UI can never silently probe one game's position against another game's table.</p>
-  <p>The most useful next research run is the outbound-only pawn sensitivity solve. It will answer whether the one unresolved sentence in the original rules changes the opening value or only the shape of the table. The current canonical result remains tied to the best-supported travel-direction reading.</p>
+  <p>The outbound-only table is also a draw from the empty board, so the ambiguity does not change the headline result. It does change the game beneath that headline: outbound-only removes 426,173,880 legal move edges, and 16,529,908 post-opening positions change win/loss/draw value. Some results even reverse; 9,366 canonical wins become outbound-only losses, while 810 losses become wins.</p>
+  <p>The current canonical result remains tied to the best-supported travel-direction reading. A direct designer or publisher ruling would still be valuable, and the materially different 2025 edition needs a complete rules transcription before it can be modeled.</p>
 
   <h2>Sources and artifacts</h2>
   <ul class="sources">
@@ -169,6 +170,7 @@ All 15 alternatives: loss in 2 plies</pre>
     <li><a href="https://github.com/cutalion/tic-tac-chec">Alexander Glushkov's playable implementation</a>, useful independent movement prior art.</li>
     <li><a href="https://github.com/brianhliou/tic-tac-chec/blob/main/research/runs/production-2026-07-13/summary.md">Production solve record</a>, with commands, timings, counts, and checksums.</li>
     <li><a href="https://github.com/brianhliou/tic-tac-chec/blob/main/research/runs/production-2026-07-13/strategic-report.md">Generated strategic report</a>, with the exact remoteness histogram and replayed lines.</li>
+    <li><a href="https://github.com/brianhliou/tic-tac-chec/blob/main/research/runs/outbound-only-2026-07-13/variant-comparison.md">Pawn-variant comparison</a>, with exact position-by-position transition matrices.</li>
     <li><a href="https://github.com/brianhliou/tic-tac-chec">Solver and explorer source</a>.</li>
   </ul>
   <p class="fine">No earlier public strong or weak solution was found in the prior-art search. That is a documented negative search result, not proof that no private or obscure solve exists.</p>

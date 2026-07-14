@@ -69,10 +69,14 @@ transcription](https://www.zpag.net/Jeux/Echec/tic_tac_chec.html) and
 
 The engine also supports the less natural literal geometry reading
 `toward-opponent`, in which a returning pawn moves straight toward home but may
-capture diagonally toward the opponent. We should obtain a designer/publisher
-ruling. Before committing to two full tablebase runs, compare the principal
-variants with enumeration and weak-search checks and report whether the initial
-value or reachable graph changes materially.
+capture diagonally toward the opponent. We should still obtain a
+designer/publisher ruling.
+
+The `outbound-only` sensitivity table was strongly solved and independently
+audited on 2026-07-13. Its initial value is also a draw, but it removes
+426,173,880 post-opening moves and changes W/L/D value at 16,529,908 dense
+post-opening positions. See the [run summary](runs/outbound-only-2026-07-13/summary.md)
+and [exact transition matrix](runs/outbound-only-2026-07-13/variant-comparison.md).
 
 ## Other missing adjudications
 
