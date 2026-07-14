@@ -13,6 +13,9 @@ Decisive positions also carry audited optimal remoteness, with a maximum of 41
 plies. The solve artifact uses one byte per state; a draw-aware publication
 artifact preserves identical probes in **485,862,535 bytes (463 MiB)**.
 
+**[Explore the solved game](https://tic-tac-chec-production.up.railway.app/)**
+or read the hosted [solve write-up](https://tic-tac-chec-production.up.railway.app/write-up/).
+
 ## Solve target
 
 The canonical target is the original Dream Green ruleset:
@@ -124,6 +127,6 @@ under GPL-3.0-or-later; see the [piece credits](solver/web/pieces/CREDITS.md) an
 
 ## Roadmap
 
-1. Deploy the verified production container and attach the public domain.
+1. Attach `tic-tac-chec.brianhliou.com` after its DNS record is configured.
 2. Package the methodology, audits, witness, and strategic report for publication.
 3. Obtain a designer/publisher pawn ruling and transcribe the complete 2025 rules.

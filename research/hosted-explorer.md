@@ -1,7 +1,8 @@
 # Hosted tablebase explorer boundary
 
-Status: implemented and verified locally; the release artifact is published
-and public deployment remains.
+Status: implemented, published, and deployed at
+[`tic-tac-chec-production.up.railway.app`](https://tic-tac-chec-production.up.railway.app/).
+The preferred custom domain is reserved and awaits its DNS record.
 
 ## Product behavior
 
@@ -72,6 +73,14 @@ These are single-machine smoke measurements, not latency distributions. A 1 GB
 Railway memory limit leaves startup and request headroom while keeping the
 expected steady footprint near the paid Hobby minimum.
 
+The same image was deployed to Railway on 2026-07-14. The service validated and
+loaded the compact tablebase in about 0.65 seconds. Its first production
+measurements reported **499.5 MB** resident memory, **27 ms** server-side HTTP
+p50, and no HTTP errors. End-to-end requests from the development machine took
+about 215 ms, including TLS and internet transit. Railway currently reports a
+24 GB platform ceiling; a smaller account-level safety cap remains optional,
+not a requirement for keeping the tablebase resident.
+
 ## Frontend contract
 
 The frontend owns presentation and move-history navigation; it does not
@@ -92,4 +101,7 @@ rules.
    `tablebase-v1` GitHub release.
 6. Completed locally: browser/API behavior checked against engine fixtures for
    opening replay, absolute orientation, decisive distance, and terminal play.
-7. Pending deployment: build and startup verification on the public host.
+7. Completed: Railway build, startup validation, public health check, live
+   empty-board probe, and production resource measurement.
+8. Pending: point the custom-domain CNAME at Railway and validate its TLS
+   certificate.
