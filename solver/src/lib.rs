@@ -5,7 +5,9 @@ pub mod graph;
 pub mod opening;
 pub mod parallel;
 pub mod ranking;
+pub mod remoteness;
 pub mod retrograde;
+pub mod tablebase;
 
 pub const BOARD_SIDE: u8 = 4;
 pub const BOARD_CELLS: usize = 16;

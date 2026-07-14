@@ -5,6 +5,12 @@ use std::time::Instant;
 use tic_tac_chec::graph::PostOpeningGraph;
 use tic_tac_chec::opening::{audit_opening, solve_opening};
 use tic_tac_chec::parallel::{audit_parallel, ParallelState};
+use tic_tac_chec::ranking::{LOCKED_OPENING_DOMAIN, POST_OPENING_DOMAIN};
+use tic_tac_chec::remoteness::{
+    audit_opening_parallel as audit_opening_remoteness, audit_parallel as audit_remoteness,
+    solve_opening_parallel as solve_opening_remoteness, solve_parallel as solve_remoteness,
+};
+use tic_tac_chec::tablebase;
 use tic_tac_chec::Rules;
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -15,16 +21,25 @@ fn main() -> Result<(), Box<dyn Error>> {
     let Some(path) = arguments.get(2) else {
         usage();
     };
-    let threads = argument(&arguments, 3, 16);
     let rules = rules(&arguments);
     let graph = PostOpeningGraph::new(rules);
 
     match command {
-        "init" => initialize(&graph, rules, path, threads),
+        "init" => initialize(&graph, rules, path, argument(&arguments, 3, 16)),
         "verify" => verify(&graph, rules, path),
-        "audit" => audit(&graph, rules, path, threads),
-        "opening" => opening(&graph, rules, path, threads),
+        "audit" => audit(&graph, rules, path, argument(&arguments, 3, 16)),
+        "opening" => opening(&graph, rules, path, argument(&arguments, 3, 16)),
+        "enrich" => {
+            let Some(output) = arguments
+                .get(3)
+                .filter(|argument| !argument.starts_with("--"))
+            else {
+                usage();
+            };
+            enrich(&graph, rules, path, output, argument(&arguments, 4, 16))
+        }
         "propagate" => {
+            let threads = argument(&arguments, 3, 16);
             let checkpoint_every = argument(&arguments, 4, 5) as u64;
             if checkpoint_every == 0 {
                 return Err("checkpoint interval must be positive".into());
@@ -33,6 +48,112 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
         _ => usage(),
     }
+}
+
+fn enrich(
+    graph: &PostOpeningGraph,
+    rules: Rules,
+    checkpoint_path: impl AsRef<Path>,
+    tablebase_path: impl AsRef<Path>,
+    threads: usize,
+) -> Result<(), Box<dyn Error>> {
+    println!("phase = enrich");
+    println!("threads = {threads}");
+    println!("rules_tag = {:#010x}", rules.stable_tag());
+    let load_start = Instant::now();
+    let state = ParallelState::load(checkpoint_path, graph, rules.stable_tag())?;
+    if !state.frontier().is_empty() {
+        return Err("post-opening fixpoint must be complete".into());
+    }
+    let solution = state.finish()?;
+    println!(
+        "checkpoint_load_seconds = {:.6}",
+        load_start.elapsed().as_secs_f64()
+    );
+
+    let solve_start = Instant::now();
+    let (post, waves) = solve_remoteness(&solution, graph, threads)?;
+    let solve_elapsed = solve_start.elapsed();
+    let stats = post.stats();
+    println!("nodes = {}", stats.nodes);
+    println!("wins = {}", stats.wins);
+    println!("losses = {}", stats.losses);
+    println!("draws = {}", stats.draws);
+    println!("terminal_losses = {}", stats.terminal_losses);
+    println!("dead_end_losses = {}", stats.dead_end_losses);
+    println!("initialized_loss_edges = {}", stats.initialized_loss_edges);
+    println!("maximum_post_distance = {}", stats.maximum_distance);
+    for wave in &waves {
+        println!(
+            "distance={} input={} predecessor_edges={} resolved={}",
+            wave.distance, wave.input_frontier, wave.predecessor_edges, wave.resolved
+        );
+    }
+    println!(
+        "remoteness_solve_seconds = {:.6}",
+        solve_elapsed.as_secs_f64()
+    );
+
+    let audit_start = Instant::now();
+    let audited = audit_remoteness(&post, &solution, graph, threads)?;
+    println!("remoteness_audit_nodes = {}", audited.nodes);
+    println!(
+        "remoteness_audit_decisive_nodes = {}",
+        audited.decisive_nodes
+    );
+    println!(
+        "remoteness_audit_decisive_edges = {}",
+        audited.decisive_edges
+    );
+    println!(
+        "remoteness_audit_maximum_distance = {}",
+        audited.maximum_distance
+    );
+    println!(
+        "remoteness_audit_seconds = {:.6}",
+        audit_start.elapsed().as_secs_f64()
+    );
+
+    let opening_start = Instant::now();
+    let opening = solve_opening(&post, rules, threads)?;
+    let opening_distances = solve_opening_remoteness(&opening, &post, rules, threads)?;
+    for layer in opening_distances.layers().iter().rev() {
+        println!(
+            "opening_ply={} states={} edges={} maximum_distance={}",
+            layer.ply, layer.states, layer.edges, layer.maximum_distance
+        );
+    }
+    println!(
+        "opening_remoteness_seconds = {:.6}",
+        opening_start.elapsed().as_secs_f64()
+    );
+
+    let opening_audit_start = Instant::now();
+    let audited_opening =
+        audit_opening_remoteness(&opening_distances, &opening, &post, rules, threads)?;
+    if audited_opening != *opening_distances.layers() {
+        return Err("opening remoteness audit layer counts differ from solve".into());
+    }
+    println!(
+        "opening_remoteness_audit_seconds = {:.6}",
+        opening_audit_start.elapsed().as_secs_f64()
+    );
+
+    let save_start = Instant::now();
+    let checksum = tablebase::save_atomic(
+        tablebase_path,
+        rules.stable_tag(),
+        post.codes(),
+        opening_distances.codes(),
+    )?;
+    println!("tablebase_post_nodes = {POST_OPENING_DOMAIN}");
+    println!("tablebase_opening_nodes = {LOCKED_OPENING_DOMAIN}");
+    println!("tablebase_crc64 = {checksum:#018x}");
+    println!(
+        "tablebase_save_seconds = {:.6}",
+        save_start.elapsed().as_secs_f64()
+    );
+    Ok(())
 }
 
 fn opening(
@@ -238,7 +359,7 @@ fn argument(arguments: &[String], index: usize, default: usize) -> usize {
 
 fn usage() -> ! {
     eprintln!(
-        "usage:\n  post_opening_solver init <checkpoint.ctb> [threads] [--pawn=travel|outbound|opponent]\n  post_opening_solver verify <checkpoint.ctb> [--pawn=travel|outbound|opponent]\n  post_opening_solver propagate <checkpoint.ctb> [threads] [checkpoint-every-waves] [--pawn=travel|outbound|opponent]\n  post_opening_solver audit <checkpoint.ctb> [threads] [--pawn=travel|outbound|opponent]\n  post_opening_solver opening <checkpoint.ctb> [threads] [--pawn=travel|outbound|opponent]"
+        "usage:\n  post_opening_solver init <checkpoint.ctb> [threads] [--pawn=travel|outbound|opponent]\n  post_opening_solver verify <checkpoint.ctb> [--pawn=travel|outbound|opponent]\n  post_opening_solver propagate <checkpoint.ctb> [threads] [checkpoint-every-waves] [--pawn=travel|outbound|opponent]\n  post_opening_solver audit <checkpoint.ctb> [threads] [--pawn=travel|outbound|opponent]\n  post_opening_solver opening <checkpoint.ctb> [threads] [--pawn=travel|outbound|opponent]\n  post_opening_solver enrich <checkpoint.ctb> <tablebase.tb> [threads] [--pawn=travel|outbound|opponent]"
     );
     std::process::exit(2)
 }
