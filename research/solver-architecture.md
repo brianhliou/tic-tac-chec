@@ -13,10 +13,13 @@ Keep the six-ply placement-only opening in its own small rank space. It has
 only 14,236,865 dense states and is acyclic; mixing an opening-history bit into
 every later state would waste space and complicate the main graph.
 
-The initial implementation should favor transparent byte arrays and measured
-speed. Two-bit values, left-right symmetry, bit-vector frontiers, sharded BSP,
-and external-memory batching should each be enabled only after an isolated
-benchmark establishes its tradeoff.
+The initial implementation should use byte arrays with relaxed atomic updates,
+sixteen local workers, and thread-local `u32` frontier buffers. Full-address
+rehearsals sustained 20.95 million generated-and-updated predecessors per
+second with 5.17 GiB peak RSS; see the [parallel scaling record](runs/parallel-retrograde-2026-07-13/summary.md).
+Two-bit values, left-right symmetry, bit-vector frontiers, sharded BSP, and
+external-memory batching should each be enabled only after a later benchmark
+establishes its tradeoff.
 
 ## Why this baseline
 
@@ -164,17 +167,21 @@ Initialization is a contiguous rank scan and should parallelize almost
 linearly. Propagation is a random-update workload and will saturate memory
 latency or bandwidth well before it saturates many CPU cores.
 
-Benchmark three propagation modes on the same reduced closed game:
+The full-address atomic rehearsal scaled from 1.78 million predecessors/s on
+one thread to 20.95 million/s on sixteen threads. That is sufficient to select
+atomic byte arrays for the first local production run. Benchmark additional
+propagation modes on a closed game only if real frontier contention materially
+reduces that scaling:
 
 1. single-threaded reference queue;
 2. atomic byte arrays with per-thread frontier buffers;
 3. owner-computes, rank-sharded BSP with updates batched by destination shard.
 
 The third option costs more machinery but gives deterministic checkpoints,
-NUMA ownership, and a clean external-memory path. It should become the full-run
-implementation only if the measured crossover justifies it. On Linux, also
-measure prefaulting and huge pages; on multi-socket hosts, allocate and process
-arrays by shard owner.
+NUMA ownership, and a clean external-memory path. It remains the fallback if a
+real closed rung exposes contention absent from the uniform rehearsal. On
+Linux, also measure prefaulting and huge pages; on multi-socket hosts, allocate
+and process arrays by shard owner.
 
 A GPU is a later experiment, not the baseline. Perfect-hash GPU game solving
 has precedent ([Edelkamp, Sulewski, and Yücel,
