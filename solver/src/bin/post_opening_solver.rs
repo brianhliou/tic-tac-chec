@@ -10,7 +10,7 @@ use tic_tac_chec::remoteness::{
     audit_opening_parallel as audit_opening_remoteness, audit_parallel as audit_remoteness,
     solve_opening_parallel as solve_opening_remoteness, solve_parallel as solve_remoteness,
 };
-use tic_tac_chec::tablebase;
+use tic_tac_chec::tablebase::{self, TablebaseArtifact};
 use tic_tac_chec::Rules;
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -27,6 +27,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     match command {
         "init" => initialize(&graph, rules, path, argument(&arguments, 3, 16)),
         "verify" => verify(&graph, rules, path),
+        "verify-tablebase" => verify_tablebase(rules, path),
         "audit" => audit(&graph, rules, path, argument(&arguments, 3, 16)),
         "opening" => opening(&graph, rules, path, argument(&arguments, 3, 16)),
         "enrich" => {
@@ -48,6 +49,56 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
         _ => usage(),
     }
+}
+
+fn verify_tablebase(rules: Rules, path: impl AsRef<Path>) -> Result<(), Box<dyn Error>> {
+    println!("phase = verify-tablebase");
+    let start = Instant::now();
+    let artifact = TablebaseArtifact::load(
+        path,
+        rules.stable_tag(),
+        POST_OPENING_DOMAIN as u64,
+        LOCKED_OPENING_DOMAIN as u64,
+    )?;
+    let (post_wins, post_losses, post_draws, post_maximum) = code_stats(artifact.post_codes());
+    let (opening_wins, opening_losses, opening_draws, opening_maximum) =
+        code_stats(artifact.opening_codes());
+    println!("rules_tag = {:#010x}", artifact.rules_tag());
+    println!("crc64 = {:#018x}", artifact.checksum());
+    println!("post_wins = {post_wins}");
+    println!("post_losses = {post_losses}");
+    println!("post_draws = {post_draws}");
+    println!("post_maximum_distance = {post_maximum}");
+    println!("opening_wins = {opening_wins}");
+    println!("opening_losses = {opening_losses}");
+    println!("opening_draws = {opening_draws}");
+    println!("opening_maximum_distance = {opening_maximum}");
+    println!(
+        "verification_seconds = {:.6}",
+        start.elapsed().as_secs_f64()
+    );
+    Ok(())
+}
+
+fn code_stats(codes: &[u8]) -> (u64, u64, u64, u8) {
+    let mut wins = 0;
+    let mut losses = 0;
+    let mut draws = 0;
+    let mut maximum = 0;
+    for &code in codes {
+        match code {
+            tic_tac_chec::remoteness::DRAW_CODE => draws += 1,
+            distance if distance.is_multiple_of(2) => {
+                losses += 1;
+                maximum = maximum.max(distance);
+            }
+            distance => {
+                wins += 1;
+                maximum = maximum.max(distance);
+            }
+        }
+    }
+    (wins, losses, draws, maximum)
 }
 
 fn enrich(
@@ -359,7 +410,7 @@ fn argument(arguments: &[String], index: usize, default: usize) -> usize {
 
 fn usage() -> ! {
     eprintln!(
-        "usage:\n  post_opening_solver init <checkpoint.ctb> [threads] [--pawn=travel|outbound|opponent]\n  post_opening_solver verify <checkpoint.ctb> [--pawn=travel|outbound|opponent]\n  post_opening_solver propagate <checkpoint.ctb> [threads] [checkpoint-every-waves] [--pawn=travel|outbound|opponent]\n  post_opening_solver audit <checkpoint.ctb> [threads] [--pawn=travel|outbound|opponent]\n  post_opening_solver opening <checkpoint.ctb> [threads] [--pawn=travel|outbound|opponent]\n  post_opening_solver enrich <checkpoint.ctb> <tablebase.tb> [threads] [--pawn=travel|outbound|opponent]"
+        "usage:\n  post_opening_solver init <checkpoint.ctb> [threads] [--pawn=travel|outbound|opponent]\n  post_opening_solver verify <checkpoint.ctb> [--pawn=travel|outbound|opponent]\n  post_opening_solver verify-tablebase <tablebase.tb> [--pawn=travel|outbound|opponent]\n  post_opening_solver propagate <checkpoint.ctb> [threads] [checkpoint-every-waves] [--pawn=travel|outbound|opponent]\n  post_opening_solver audit <checkpoint.ctb> [threads] [--pawn=travel|outbound|opponent]\n  post_opening_solver opening <checkpoint.ctb> [threads] [--pawn=travel|outbound|opponent]\n  post_opening_solver enrich <checkpoint.ctb> <tablebase.tb> [threads] [--pawn=travel|outbound|opponent]"
     );
     std::process::exit(2)
 }
