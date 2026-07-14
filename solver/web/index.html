@@ -27,14 +27,14 @@
 
   .main { flex:1 1 auto; min-height:0; display:flex; gap:24px; align-items:stretch; justify-content:center; }
   .left { flex:0 1 auto; min-width:0; min-height:0; display:flex; align-items:center; justify-content:center; }
-  .boardbox { width:min(680px,calc(100vh - 178px)); min-width:320px; display:grid;
+  .boardbox { width:min(640px,calc(100vh - 215px)); min-width:300px; display:grid;
               grid-template-rows:auto minmax(0,1fr) auto; gap:9px; min-height:0; }
-  .tray { min-height:60px; display:flex; align-items:center; justify-content:center; gap:8px; padding:6px 12px;
+  .tray { min-height:70px; display:flex; align-items:center; justify-content:center; gap:9px; padding:7px 12px;
           border:1.5px solid #e6e2d6; border-radius:12px; background:#f8f5ec; position:relative; }
   .tray.active { border-color:var(--accent); box-shadow:0 0 0 3px rgba(217,138,43,.15); }
   .tray-label { position:absolute; left:12px; color:#9a8a62; font-size:.66rem; font-weight:700;
                 text-transform:uppercase; letter-spacing:.04em; }
-  .hand-piece { width:46px; height:46px; display:grid; place-items:center; border:1px solid #ded7c5;
+  .hand-piece { width:56px; height:56px; display:grid; place-items:center; border:1px solid #ded7c5;
                 background:#fffdf8; border-radius:9px; padding:0; cursor:grab; box-shadow:0 2px 5px rgba(58,37,12,.08);
                 user-select:none; touch-action:none; }
   .hand-piece img { width:100%; height:100%; display:block; pointer-events:none; }
@@ -46,13 +46,17 @@
   .ranks,.files { display:grid; color:#91866e; font-size:.7rem; text-align:center; }
   .ranks { grid-template-rows:repeat(4,1fr); align-items:center; }
   .files { grid-template-columns:repeat(4,1fr); grid-column:2; align-items:center; }
-  .board { grid-column:2; display:grid; grid-template-columns:repeat(4,minmax(0,1fr));
+  .board { --board-radius:12px; grid-column:2; display:grid; grid-template-columns:repeat(4,minmax(0,1fr));
            grid-template-rows:repeat(4,minmax(0,1fr)); width:100%; aspect-ratio:1; min-width:0; min-height:0;
-           border:0; border-radius:1.9%; overflow:hidden; background:var(--board-frame); gap:0;
+           border:0; border-radius:var(--board-radius); overflow:hidden; background:var(--board-frame); gap:0;
            box-shadow:0 14px 32px rgba(42,34,18,.18); touch-action:none; }
   .square { border:0; border-radius:0; padding:0; position:relative; display:grid; place-items:center;
             width:100%; height:100%; overflow:hidden; background:var(--board); cursor:pointer; min-width:0; min-height:0; }
   .square.alt { background:var(--board2); }
+  .square:nth-child(1) { border-top-left-radius:var(--board-radius); }
+  .square:nth-child(4) { border-top-right-radius:var(--board-radius); }
+  .square:nth-child(13) { border-bottom-left-radius:var(--board-radius); }
+  .square:nth-child(16) { border-bottom-right-radius:var(--board-radius); }
   .square:hover { filter:brightness(1.025); }
   .square.movable { cursor:grab; }
   .square.movable:active { cursor:grabbing; }
@@ -63,7 +67,8 @@
                                background:rgba(217,138,43,.16); z-index:4; pointer-events:none; }
   .piece { width:100%; height:100%; display:block; position:relative; z-index:2; user-select:none; pointer-events:none; }
   .piece img { width:100%; height:100%; min-width:0; min-height:0; display:block; object-fit:contain; }
-  .piece.drag-origin { opacity:.3; }
+  .piece.drag-origin img { opacity:.22; filter:grayscale(1) contrast(.72) drop-shadow(0 2px 1px rgba(0,0,0,.28)); }
+  .piece.drag-origin .direction { opacity:.2; }
   .direction { position:absolute; right:6%; bottom:5%; display:grid; place-items:center; width:22%; aspect-ratio:1;
                border:1px solid rgba(255,255,255,.9); border-radius:50%; background:rgba(31,35,40,.8); color:#fff;
                font:700 clamp(11px,1.8vh,17px)/1 system-ui; box-shadow:0 1px 3px rgba(0,0,0,.28); }
@@ -100,7 +105,7 @@
   .mv { font:.92rem ui-monospace,Menlo,monospace; }
   .badge { font-size:.76rem; font-weight:700; padding:2px 9px; border-radius:11px; min-width:58px; text-align:center; }
   .badge.Win { background:var(--win); color:#fff; } .badge.Loss { background:var(--loss); color:#fff; }
-  .badge.Draw { background:#d7dade; color:#333; } .star { color:var(--accent); margin-left:5px; }
+  .badge.Draw { background:#d7dade; color:#333; }
   .loading,.error { padding:24px; color:var(--muted); text-align:center; }
 
   .modal { position:fixed; inset:0; background:rgba(20,22,26,.5); display:flex; align-items:center; justify-content:center; z-index:50; padding:20px; }
@@ -125,7 +130,7 @@
   <section class="left"><div class="boardbox"><div class="tray" id="blackHand"></div><div class="board-frame"><div class="ranks"><span>4</span><span>3</span><span>2</span><span>1</span></div><div class="board" id="board"></div><div class="files"><span>a</span><span>b</span><span>c</span><span>d</span></div></div><div class="tray" id="whiteHand"></div></div></section>
   <aside class="panel"><div class="verdict Draw" id="verdict">Loading…</div><div class="controls"><button id="reset" title="Reset">↺ Reset</button><button id="back" title="Step back">◀</button><button id="fwd" title="Step forward">▶</button><span class="position-id" id="positionId"></span></div><div class="secthdr">Moves played</div><div class="line" id="history"></div><div class="secthdr">Tablebase — every move ranked</div><div class="moves" id="moves"><div class="loading">Loading tablebase position…</div></div></aside>
 </main>
-<div class="modal" id="howModal" hidden><article class="modal-card"><button class="modal-close" id="howClose">×</button><h2>Tic Tac Chec, solved</h2><p class="lead">The original 4×4 Dream Green game, played against a complete tablebase.</p><h3>What this is</h3><p>Tic Tac Chec uses one pawn, knight, bishop, and rook per player. Each player places three pieces before movement unlocks; captures return pieces to their owner's hand. Align all four pieces in a row, column, or long diagonal to win.</p><p>Under the canonical original rules, perfect play is a <strong>draw</strong>. This explorer covers 2,462,360,745 normalized post-opening positions plus all 14,236,865 opening positions.</p><h3>How to read it</h3><div class="legend"><span><i class="w"></i>winning</span><span><i class="d"></i>drawing</span><span><i class="l"></i>losing</span></div><p>The verdict describes the player to move. Legal moves are ranked best first. Forced wins choose the shortest line; forced losses choose the longest resistance. Draws have no finite distance. A star marks a remoteness-optimal move.</p><p>Drag a piece from the hand or board onto a highlighted square, or click a piece and then its destination.</p><h3>Move notation</h3><p><code>N@c2</code> places a knight on c2; <code>a1-a4</code> moves the piece from a1 to a4. Pawn arrows show current travel direction after reversals.</p><h3>Rules interpretation</h3><p>This table uses travel-direction pawn captures: after reversing at an edge, a pawn's capture diagonals reverse with it. Infinite non-winning play is a draw.</p></article></div>
+<div class="modal" id="howModal" hidden><article class="modal-card"><button class="modal-close" id="howClose">×</button><h2>Tic Tac Chec, solved</h2><p class="lead">The original 4×4 Dream Green game, played against a complete tablebase.</p><h3>What this is</h3><p>Tic Tac Chec uses one pawn, knight, bishop, and rook per player. Each player places three pieces before movement unlocks; captures return pieces to their owner's hand. Align all four pieces in a row, column, or long diagonal to win.</p><p>Under the canonical original rules, perfect play is a <strong>draw</strong>. This explorer covers 2,462,360,745 normalized post-opening positions plus all 14,236,865 opening positions.</p><h3>How to read it</h3><div class="legend"><span><i class="w"></i>winning</span><span><i class="d"></i>drawing</span><span><i class="l"></i>losing</span></div><p>The verdict describes the player to move. Legal moves are ranked best first. Forced wins choose the shortest line; forced losses choose the longest resistance. Draws have no finite distance.</p><p>Drag a piece from the hand or board onto a highlighted square, or click a piece and then its destination.</p><h3>Move notation</h3><p><code>N@c2</code> places a knight on c2; <code>a1-a4</code> moves the piece from a1 to a4. Pawn arrows show current travel direction after reversals.</p><h3>Rules interpretation</h3><p>This table uses travel-direction pawn captures: after reversing at an edge, a pawn's capture diagonals reverse with it. Infinite non-winning play is a draw.</p></article></div>
 <script>
 const letter={Pawn:'P',Knight:'N',Bishop:'B',Rook:'R'};
 const pieceOrder=['Pawn','Knight','Bishop','Rook'];
@@ -158,7 +163,7 @@ window.addEventListener('pointermove',event=>{if(!press||event.pointerId!==press
 window.addEventListener('pointerup',event=>{if(!press||event.pointerId!==press.pointerId)return;if(press.moved)finishDrag(event);else press=null});
 window.addEventListener('pointercancel',()=>{if(drag&&drag.preview)drag.preview.remove();press=null;drag=null;hoverSquare=null;clearSelection();if(data){renderHands();renderBoard()}});
 function renderHistory(){const el=document.getElementById('history');if(!line.length){el.innerHTML='<div class="empty-line">No moves yet</div>';return}let html='';for(let i=0;i<line.length;i+=2){html+=`<div class="lrow"><span class="lnum">${i/2+1}.</span>${[i,i+1].map(ply=>ply<line.length?`<button class="ply ${cursor===ply+1?'cur':''}" data-cursor="${ply+1}">${esc(line[ply].notation)}</button>`:'<span></span>').join('')}</div>`}el.innerHTML=html;el.querySelectorAll('.ply').forEach(button=>button.onclick=()=>{cursor=Number(button.dataset.cursor);load()})}
-function renderMoves(){const el=document.getElementById('moves'),moves=sortedMoves();if(!moves.length){el.innerHTML='<div class="loading">Terminal position</div>';return}let html='',group=null;for(const move of moves){if(move.result!==group){group=move.result;html+=`<div class="grouphdr ${group}">${group==='Win'?'Winning':group==='Draw'?'Drawing':'Losing'} moves</div>`}const score=move.distance==null?'draw':`${move.result.toLowerCase()} in ${move.distance}`;html+=`<button class="move" data-index="${move.index}"><span class="mv">${esc(move.notation)}${move.optimal?'<span class="star">★</span>':''}</span><span class="badge ${move.result}">${score}</span></button>`}el.innerHTML=html;el.querySelectorAll('.move').forEach(button=>button.onclick=()=>play(data.moves.find(move=>move.index===Number(button.dataset.index))))}
+function renderMoves(){const el=document.getElementById('moves'),moves=sortedMoves();if(!moves.length){el.innerHTML='<div class="loading">Terminal position</div>';return}let html='',group=null;for(const move of moves){if(move.result!==group){group=move.result;html+=`<div class="grouphdr ${group}">${group==='Win'?'Winning':group==='Draw'?'Drawing':'Losing'} moves</div>`}const score=move.distance==null?'draw':`${move.result.toLowerCase()} in ${move.distance}`;html+=`<button class="move" data-index="${move.index}"><span class="mv">${esc(move.notation)}</span><span class="badge ${move.result}">${score}</span></button>`}el.innerHTML=html;el.querySelectorAll('.move').forEach(button=>button.onclick=()=>play(data.moves.find(move=>move.index===Number(button.dataset.index))))}
 document.getElementById('reset').onclick=()=>{line=[];cursor=0;load()};document.getElementById('back').onclick=()=>{if(cursor){cursor--;load()}};document.getElementById('fwd').onclick=()=>{if(cursor<line.length){cursor++;load()}};
 const modal=document.getElementById('howModal');document.getElementById('howBtn').onclick=()=>modal.hidden=false;document.getElementById('howClose').onclick=()=>modal.hidden=true;modal.onclick=event=>{if(event.target===modal)modal.hidden=true};document.addEventListener('keydown',event=>{if(event.key==='Escape')modal.hidden=true});load();
 </script>
