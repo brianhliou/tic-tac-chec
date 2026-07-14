@@ -53,6 +53,10 @@ encoding, and published SHA-256
 before becoming healthy. The compact artifact was compared entry-for-entry
 against all 2,476,597,610 codes in the source table.
 
+The origin supports persistent HTTP/1.1 connections for up to 100 requests or
+10 seconds idle. This avoids repeating connection setup during a sequence of
+probes while preserving a fixed worker pool and bounded connection lifetime.
+
 ## Deployment package
 
 The root `Dockerfile` builds only `tablebase_server`, downloads the immutable
@@ -89,6 +93,13 @@ reimplement legality, ranking, W/L/D inversion, or optimality. The API response
 is the authority. The board should visibly mark pawn travel direction after a
 reversal, because that direction affects future captures under the canonical
 rules.
+
+Probe responses use a 512-position in-memory browser cache with in-flight
+request deduplication. Hovered moves and the first four ranked continuations
+are prefetched with at most two concurrent requests and eight queued requests.
+Uncached navigation retains the previous position and only shows `Probing...`
+after 180 ms, so fast responses do not flash a loading state. A generation
+guard prevents an older response from replacing a newer navigation result.
 
 ## Delivery sequence
 

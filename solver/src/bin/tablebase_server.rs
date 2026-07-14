@@ -1,5 +1,5 @@
 use std::error::Error;
-use std::io::{Read, Write};
+use std::io::{self, BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
 use std::path::Path;
 use std::sync::{mpsc, Arc, Mutex};
@@ -26,8 +26,17 @@ const BLACK_ROOK: &str = include_str!("../../web/pieces/cburnett/bR.svg");
 const DEFAULT_PORT: u16 = 4173;
 const DEFAULT_WORKERS: usize = 8;
 const MAX_PATH_PLIES: usize = 512;
+const MAX_REQUEST_HEAD: usize = 16 * 1024;
+const MAX_REQUESTS_PER_CONNECTION: usize = 100;
 const CONNECTION_QUEUE: usize = 128;
 const IO_TIMEOUT: Duration = Duration::from_secs(10);
+
+#[derive(Debug, PartialEq, Eq)]
+struct RequestHead {
+    method: String,
+    target: String,
+    keep_alive: bool,
+}
 
 fn main() -> Result<(), Box<dyn Error>> {
     let arguments: Vec<_> = std::env::args().collect();
@@ -97,44 +106,150 @@ fn worker_loop(
 ) {
     loop {
         let stream = receiver.lock().expect("worker queue poisoned").recv();
-        let Ok(mut stream) = stream else {
+        let Ok(stream) = stream else {
             break;
         };
         let _ = stream.set_read_timeout(Some(IO_TIMEOUT));
         let _ = stream.set_write_timeout(Some(IO_TIMEOUT));
-        if let Err(error) = handle(&mut stream, tablebase, rules) {
+        if let Err(error) = handle_connection(stream, tablebase, rules) {
             eprintln!("request error: {error}");
         }
     }
 }
 
-fn handle(
-    stream: &mut TcpStream,
+fn handle_connection(
+    mut stream: TcpStream,
     tablebase: &CompactTablebaseArtifact,
     rules: Rules,
 ) -> Result<(), Box<dyn Error>> {
-    let mut request = [0_u8; 16 * 1024];
-    let length = stream.read(&mut request)?;
-    let request = std::str::from_utf8(&request[..length])?;
-    let Some(line) = request.lines().next() else {
-        return Ok(());
-    };
+    let mut reader = BufReader::new(stream.try_clone()?);
+    for request_index in 0..MAX_REQUESTS_PER_CONNECTION {
+        let request = match read_request(&mut reader) {
+            Ok(Some(request)) => request,
+            Ok(None) => return Ok(()),
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut
+                ) =>
+            {
+                return Ok(());
+            }
+            Err(error) => return Err(error.into()),
+        };
+        let keep_alive = request.keep_alive && request_index + 1 < MAX_REQUESTS_PER_CONNECTION;
+        handle(
+            &mut stream,
+            &request.method,
+            &request.target,
+            tablebase,
+            rules,
+            keep_alive,
+        )?;
+        if !keep_alive {
+            return Ok(());
+        }
+    }
+    Ok(())
+}
+
+fn read_request(reader: &mut impl BufRead) -> io::Result<Option<RequestHead>> {
+    let mut line = String::new();
+    let mut bytes = reader.read_line(&mut line)?;
+    if bytes == 0 {
+        return Ok(None);
+    }
+    if bytes > MAX_REQUEST_HEAD {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "request headers are too large",
+        ));
+    }
     let mut parts = line.split_whitespace();
-    let method = parts.next().unwrap_or_default();
-    let target = parts.next().unwrap_or_default();
+    let method = parts.next().unwrap_or_default().to_owned();
+    let target = parts.next().unwrap_or_default().to_owned();
+    let version = parts.next().unwrap_or_default();
+    if method.is_empty() || target.is_empty() || !matches!(version, "HTTP/1.0" | "HTTP/1.1") {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "malformed HTTP request line",
+        ));
+    }
+    let mut keep_alive = version == "HTTP/1.1";
+    loop {
+        line.clear();
+        let read = reader.read_line(&mut line)?;
+        if read == 0 {
+            return Err(io::Error::new(
+                io::ErrorKind::UnexpectedEof,
+                "request ended before its headers",
+            ));
+        }
+        bytes += read;
+        if bytes > MAX_REQUEST_HEAD {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "request headers are too large",
+            ));
+        }
+        if line == "\r\n" || line == "\n" {
+            break;
+        }
+        let Some((name, value)) = line.split_once(':') else {
+            continue;
+        };
+        if name.eq_ignore_ascii_case("connection") {
+            for directive in value.split(',').map(str::trim) {
+                if directive.eq_ignore_ascii_case("close") {
+                    keep_alive = false;
+                } else if directive.eq_ignore_ascii_case("keep-alive") {
+                    keep_alive = true;
+                }
+            }
+        }
+    }
+    Ok(Some(RequestHead {
+        method,
+        target,
+        keep_alive,
+    }))
+}
+
+fn handle(
+    stream: &mut TcpStream,
+    method: &str,
+    target: &str,
+    tablebase: &CompactTablebaseArtifact,
+    rules: Rules,
+    keep_alive: bool,
+) -> Result<(), Box<dyn Error>> {
     if method != "GET" {
         return respond(
             stream,
             405,
             "text/plain; charset=utf-8",
             "Method not allowed",
+            keep_alive,
         );
     }
     if let Some(page) = page_asset(target) {
-        return respond_cached(stream, 200, "text/html; charset=utf-8", page, "no-cache");
+        return respond_cached(
+            stream,
+            200,
+            "text/html; charset=utf-8",
+            page,
+            "no-cache",
+            keep_alive,
+        );
     }
     if target == "/health" {
-        return respond(stream, 200, "application/json", "{\"status\":\"ok\"}");
+        return respond(
+            stream,
+            200,
+            "application/json",
+            "{\"status\":\"ok\"}",
+            keep_alive,
+        );
     }
     if let Some(asset) = piece_asset(target) {
         return respond_cached(
@@ -143,6 +258,7 @@ fn handle(
             "image/svg+xml",
             asset,
             "public, max-age=31536000, immutable",
+            keep_alive,
         );
     }
     if target == "/api/probe" || target.starts_with("/api/probe?") {
@@ -150,12 +266,18 @@ fn handle(
             Ok(body) => body,
             Err(error) => {
                 let body = format!("{{\"error\":{}}}", json_string(&error));
-                return respond(stream, 400, "application/json", &body);
+                return respond(stream, 400, "application/json", &body, keep_alive);
             }
         };
-        return respond(stream, 200, "application/json", &body);
+        return respond(stream, 200, "application/json", &body, keep_alive);
     }
-    respond(stream, 404, "text/plain; charset=utf-8", "Not found")
+    respond(
+        stream,
+        404,
+        "text/plain; charset=utf-8",
+        "Not found",
+        keep_alive,
+    )
 }
 
 fn page_asset(target: &str) -> Option<&'static str> {
@@ -359,8 +481,9 @@ fn respond(
     status: u16,
     content_type: &str,
     body: &str,
+    keep_alive: bool,
 ) -> Result<(), Box<dyn Error>> {
-    respond_cached(stream, status, content_type, body, "no-store")
+    respond_cached(stream, status, content_type, body, "no-store", keep_alive)
 }
 
 fn respond_cached(
@@ -369,6 +492,7 @@ fn respond_cached(
     content_type: &str,
     body: &str,
     cache_control: &str,
+    keep_alive: bool,
 ) -> Result<(), Box<dyn Error>> {
     let reason = match status {
         200 => "OK",
@@ -377,10 +501,13 @@ fn respond_cached(
         405 => "Method Not Allowed",
         _ => "Error",
     };
+    let connection = if keep_alive { "keep-alive" } else { "close" };
     write!(
         stream,
-        "HTTP/1.1 {status} {reason}\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nCache-Control: {cache_control}\r\nX-Content-Type-Options: nosniff\r\nConnection: close\r\n\r\n{body}",
-        body.len()
+        "HTTP/1.1 {status} {reason}\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nCache-Control: {cache_control}\r\nX-Content-Type-Options: nosniff\r\nConnection: {connection}\r\nKeep-Alive: timeout={}, max={}\r\n\r\n{body}",
+        body.len(),
+        IO_TIMEOUT.as_secs(),
+        MAX_REQUESTS_PER_CONNECTION
     )?;
     stream.flush()?;
     Ok(())
@@ -418,6 +545,36 @@ mod tests {
             parse_path("/api/probe?path=0,17,4").unwrap(),
             vec![0, 17, 4]
         );
+    }
+
+    #[test]
+    fn request_parser_handles_persistent_and_pipelined_requests() {
+        let requests = b"GET /health HTTP/1.1\r\nHost: example\r\n\r\nGET / HTTP/1.1\r\nConnection: close\r\n\r\n";
+        let mut reader = BufReader::new(&requests[..]);
+        assert_eq!(
+            read_request(&mut reader).unwrap(),
+            Some(RequestHead {
+                method: "GET".to_owned(),
+                target: "/health".to_owned(),
+                keep_alive: true,
+            })
+        );
+        assert_eq!(
+            read_request(&mut reader).unwrap(),
+            Some(RequestHead {
+                method: "GET".to_owned(),
+                target: "/".to_owned(),
+                keep_alive: false,
+            })
+        );
+        assert_eq!(read_request(&mut reader).unwrap(), None);
+    }
+
+    #[test]
+    fn request_parser_respects_http_10_keep_alive() {
+        let request = b"GET /health HTTP/1.0\r\nConnection: keep-alive\r\n\r\n";
+        let mut reader = BufReader::new(&request[..]);
+        assert!(read_request(&mut reader).unwrap().unwrap().keep_alive);
     }
 
     #[test]
