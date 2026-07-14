@@ -20,6 +20,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     match command {
         "init" => initialize(&graph, rules, path, threads),
+        "verify" => verify(&graph, rules, path),
         "propagate" => {
             let checkpoint_every = argument(&arguments, 4, 5) as u64;
             if checkpoint_every == 0 {
@@ -29,6 +30,24 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
         _ => usage(),
     }
+}
+
+fn verify(
+    graph: &PostOpeningGraph,
+    rules: Rules,
+    path: impl AsRef<Path>,
+) -> Result<(), Box<dyn Error>> {
+    println!("phase = verify");
+    let start = Instant::now();
+    let state = ParallelState::load(path, graph, rules.stable_tag())?;
+    println!("rules_tag = {:#010x}", rules.stable_tag());
+    println!("wave = {}", state.wave());
+    println!("frontier = {}", state.frontier().len());
+    println!(
+        "verification_seconds = {:.6}",
+        start.elapsed().as_secs_f64()
+    );
+    Ok(())
 }
 
 fn initialize(
@@ -145,7 +164,7 @@ fn argument(arguments: &[String], index: usize, default: usize) -> usize {
 
 fn usage() -> ! {
     eprintln!(
-        "usage:\n  post_opening_solver init <checkpoint.ctb> [threads] [--pawn=travel|outbound|opponent]\n  post_opening_solver propagate <checkpoint.ctb> [threads] [checkpoint-every-waves] [--pawn=travel|outbound|opponent]"
+        "usage:\n  post_opening_solver init <checkpoint.ctb> [threads] [--pawn=travel|outbound|opponent]\n  post_opening_solver verify <checkpoint.ctb> [--pawn=travel|outbound|opponent]\n  post_opening_solver propagate <checkpoint.ctb> [threads] [checkpoint-every-waves] [--pawn=travel|outbound|opponent]"
     );
     std::process::exit(2)
 }
