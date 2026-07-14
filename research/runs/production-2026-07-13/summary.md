@@ -37,8 +37,6 @@ The checkpoint contains one value byte and one exact remaining-child byte for
 every normalized state plus the sorted terminal frontier. Loading validates
 the version, rules tag, dimensions, frontier bounds, and streaming CRC-64.
 
-## Status
-
 ## Propagation
 
 - Source commit: `c3185f83378fbbd1c6492533b1920946b725fc18` plus the checkpoint-compatible solver from
@@ -81,9 +79,38 @@ The audit is a pull computation over regenerated successors. It does not use
 the solver's generated predecessors or remaining-child counters. Every dense
 state satisfied the direct terminal/win/loss/draw minimax equation.
 
+## Forced-placement opening
+
+- Source commit: `aafdef480fbfe2f23cd6a24d1babbc432352313d`
+- Command: `cargo run --manifest-path solver/Cargo.toml --release --bin post_opening_solver -- opening research/runs/production-2026-07-13/post-opening-travel.ctb 16`
+- Locked-opening states: **14,236,865**
+- Placement edges: **317,806,144**
+- Mean outdegree: **22.322761647**
+- Backward-evaluation time: **3.114531 seconds**
+- Independent reference audit time: **8.571737 seconds**
+- Initial empty-board value: **draw**
+
+| Ply | States | Edges | Wins | Losses | Draws |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 0 | 1 | 64 | 0 | 0 | 1 |
+| 1 | 64 | 3,840 | 0 | 0 | 64 |
+| 2 | 3,840 | 161,280 | 0 | 0 | 3,840 |
+| 3 | 80,640 | 3,144,960 | 0 | 0 | 80,640 |
+| 4 | 1,572,480 | 37,739,520 | 60,404 | 0 | 1,512,076 |
+| 5 | 12,579,840 | 276,756,480 | 87,068 | 30,468 | 12,462,304 |
+
+The solve evaluated the layers from ply 5 back to ply 0 using the
+allocation-free production opening generator. The audit then regenerated all
+opening actions with the separately implemented vector-based rules engine,
+applied every action through checked play, and verified the direct minimax
+equation for every opening state. Its layer statistics matched the production
+pass exactly.
+
 ## Status
 
-The normalized post-opening W/L/D table is complete, checksummed, reloadable,
-and fully audited. This is not yet the value of the initial empty board: the
-six-ply forced-placement opening must still be evaluated backward against this
-table.
+The canonical original-edition game is a draw under perfect play. The result
+is a strong W/L/D solution: the normalized post-opening table is complete,
+checksummed, reloadable, and fully audited, and the complete forced-placement
+opening has independently replayed values back to the initial empty board.
+Remoteness and a compact human-readable drawing strategy have not yet been
+computed.
