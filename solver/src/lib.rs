@@ -2,6 +2,7 @@ use std::fmt;
 
 pub mod checkpoint;
 pub mod graph;
+pub mod parallel;
 pub mod ranking;
 pub mod retrograde;
 

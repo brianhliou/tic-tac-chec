@@ -51,6 +51,26 @@ impl Solution {
         self.stats
     }
 
+    pub(crate) fn from_fixpoint(mut values: Vec<u8>) -> Self {
+        let mut stats = SolutionStats {
+            wins: 0,
+            losses: 0,
+            draws: 0,
+        };
+        for value in &mut values {
+            match *value {
+                WIN => stats.wins += 1,
+                LOSS => stats.losses += 1,
+                UNKNOWN => {
+                    *value = DRAW;
+                    stats.draws += 1;
+                }
+                _ => unreachable!("fixpoint values contain only unknown, win, or loss"),
+            }
+        }
+        Self { values, stats }
+    }
+
     pub fn audit(&self, graph: &impl GameGraph) -> Result<(), RetrogradeError> {
         let node_count = graph.node_count();
         if self.values.len() != node_count as usize {
@@ -233,24 +253,7 @@ pub fn solve(graph: &impl GameGraph) -> Result<Solution, RetrogradeError> {
         }
     }
 
-    let mut stats = SolutionStats {
-        wins: 0,
-        losses: 0,
-        draws: 0,
-    };
-    for value in &mut values {
-        match *value {
-            WIN => stats.wins += 1,
-            LOSS => stats.losses += 1,
-            UNKNOWN => {
-                *value = DRAW;
-                stats.draws += 1;
-            }
-            _ => unreachable!("draws are assigned only after the fixpoint"),
-        }
-    }
-
-    Ok(Solution { values, stats })
+    Ok(Solution::from_fixpoint(values))
 }
 
 fn decode(value: u8) -> Value {

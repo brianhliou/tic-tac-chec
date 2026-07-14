@@ -49,55 +49,14 @@ impl Checkpoint {
     }
 
     pub fn save_atomic(&self, path: impl AsRef<Path>) -> Result<(), CheckpointError> {
-        self.validate()?;
-        let path = path.as_ref();
-        if let Some(parent) = path
-            .parent()
-            .filter(|parent| !parent.as_os_str().is_empty())
-        {
-            fs::create_dir_all(parent)?;
-        }
-        let temporary = temporary_path(path);
-        let file = File::create(&temporary)?;
-        let mut writer = BufWriter::with_capacity(BUFFER_BYTES, file);
-        let mut crc = Crc64::new();
-
-        write_crc(&mut writer, &mut crc, &MAGIC)?;
-        write_crc(&mut writer, &mut crc, &VERSION.to_le_bytes())?;
-        write_crc(&mut writer, &mut crc, &self.node_count().to_le_bytes())?;
-        write_crc(&mut writer, &mut crc, &self.rules_tag.to_le_bytes())?;
-        write_crc(&mut writer, &mut crc, &self.wave.to_le_bytes())?;
-        write_crc(
-            &mut writer,
-            &mut crc,
-            &(self.values.len() as u64).to_le_bytes(),
-        )?;
-        write_crc(
-            &mut writer,
-            &mut crc,
-            &(self.remaining.len() as u64).to_le_bytes(),
-        )?;
-        write_crc(
-            &mut writer,
-            &mut crc,
-            &(self.frontier.len() as u64).to_le_bytes(),
-        )?;
-        write_crc(&mut writer, &mut crc, &self.values)?;
-        write_crc(&mut writer, &mut crc, &self.remaining)?;
-        write_frontier(&mut writer, &mut crc, &self.frontier)?;
-        writer.write_all(&crc.finish().to_le_bytes())?;
-        writer.flush()?;
-        writer.get_ref().sync_all()?;
-        drop(writer);
-
-        fs::rename(&temporary, path)?;
-        if let Some(parent) = path
-            .parent()
-            .filter(|parent| !parent.as_os_str().is_empty())
-        {
-            File::open(parent)?.sync_all()?;
-        }
-        Ok(())
+        save_atomic(
+            path,
+            self.rules_tag,
+            self.wave,
+            &self.values,
+            &self.remaining,
+            &self.frontier,
+        )
     }
 
     pub fn load(
@@ -191,37 +150,94 @@ impl Checkpoint {
     }
 
     fn validate(&self) -> Result<(), CheckpointError> {
-        let node_count =
-            u32::try_from(self.values.len()).map_err(|_| CheckpointError::LengthOverflow)?;
-        if self.remaining.len() != self.values.len() {
-            return Err(CheckpointError::InvalidTableLengths {
-                node_count,
-                values: self.values.len() as u64,
-                remaining: self.remaining.len() as u64,
-            });
-        }
-        if self.frontier.len() > self.values.len() {
-            return Err(CheckpointError::FrontierTooLarge {
-                node_count,
-                frontier: self.frontier.len() as u64,
-            });
-        }
-        if let Some((node, &value)) = self
-            .values
-            .iter()
-            .enumerate()
-            .find(|(_, value)| **value > 3)
-        {
-            return Err(CheckpointError::InvalidValue {
-                node: node as u32,
-                value,
-            });
-        }
-        if let Some(&node) = self.frontier.iter().find(|&&node| node >= node_count) {
-            return Err(CheckpointError::FrontierNodeOutOfRange { node, node_count });
-        }
-        Ok(())
+        validate_parts(&self.values, &self.remaining, &self.frontier).map(|_| ())
     }
+}
+
+pub fn save_atomic(
+    path: impl AsRef<Path>,
+    rules_tag: u32,
+    wave: u64,
+    values: &[u8],
+    remaining: &[u8],
+    frontier: &[u32],
+) -> Result<(), CheckpointError> {
+    let node_count = validate_parts(values, remaining, frontier)?;
+    let path = path.as_ref();
+    if let Some(parent) = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+    {
+        fs::create_dir_all(parent)?;
+    }
+    let temporary = temporary_path(path);
+    let file = File::create(&temporary)?;
+    let mut writer = BufWriter::with_capacity(BUFFER_BYTES, file);
+    let mut crc = Crc64::new();
+
+    write_crc(&mut writer, &mut crc, &MAGIC)?;
+    write_crc(&mut writer, &mut crc, &VERSION.to_le_bytes())?;
+    write_crc(&mut writer, &mut crc, &node_count.to_le_bytes())?;
+    write_crc(&mut writer, &mut crc, &rules_tag.to_le_bytes())?;
+    write_crc(&mut writer, &mut crc, &wave.to_le_bytes())?;
+    write_crc(&mut writer, &mut crc, &(values.len() as u64).to_le_bytes())?;
+    write_crc(
+        &mut writer,
+        &mut crc,
+        &(remaining.len() as u64).to_le_bytes(),
+    )?;
+    write_crc(
+        &mut writer,
+        &mut crc,
+        &(frontier.len() as u64).to_le_bytes(),
+    )?;
+    write_crc(&mut writer, &mut crc, values)?;
+    write_crc(&mut writer, &mut crc, remaining)?;
+    write_frontier(&mut writer, &mut crc, frontier)?;
+    writer.write_all(&crc.finish().to_le_bytes())?;
+    writer.flush()?;
+    writer.get_ref().sync_all()?;
+    drop(writer);
+
+    fs::rename(&temporary, path)?;
+    if let Some(parent) = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+    {
+        File::open(parent)?.sync_all()?;
+    }
+    Ok(())
+}
+
+fn validate_parts(
+    values: &[u8],
+    remaining: &[u8],
+    frontier: &[u32],
+) -> Result<u32, CheckpointError> {
+    let node_count = u32::try_from(values.len()).map_err(|_| CheckpointError::LengthOverflow)?;
+    if remaining.len() != values.len() {
+        return Err(CheckpointError::InvalidTableLengths {
+            node_count,
+            values: values.len() as u64,
+            remaining: remaining.len() as u64,
+        });
+    }
+    if frontier.len() > values.len() {
+        return Err(CheckpointError::FrontierTooLarge {
+            node_count,
+            frontier: frontier.len() as u64,
+        });
+    }
+    if let Some((node, &value)) = values.iter().enumerate().find(|(_, value)| **value > 3) {
+        return Err(CheckpointError::InvalidValue {
+            node: node as u32,
+            value,
+        });
+    }
+    if let Some(&node) = frontier.iter().find(|&&node| node >= node_count) {
+        return Err(CheckpointError::FrontierNodeOutOfRange { node, node_count });
+    }
+    Ok(node_count)
 }
 
 #[derive(Debug)]
