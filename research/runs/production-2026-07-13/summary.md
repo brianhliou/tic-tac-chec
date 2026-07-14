@@ -184,3 +184,41 @@ The remaining product work is human-facing position input/editing, a compact
 drawing-strategy presentation, a hosted explorer, and human-readable strategic
 analysis. The current CLI accepts dense opening or post-opening IDs and serves
 as the backend behavior oracle for those interfaces.
+
+## Deterministic drawing witness
+
+- Extractor source commit: `80e2425cf967bfd288bf227504875f5f38122eae`
+- Command: `cargo run --manifest-path solver/Cargo.toml --release --bin drawing_witness -- research/runs/production-2026-07-13/post-opening-travel.tb research/runs/production-2026-07-13/drawing-witness.json 1000000`
+- Policy: `least-drawing-action-v1`
+- Prefix: **32 plies**
+- Exact repeated-position cycle: **18 plies**
+- Total recorded line: **50 plies**
+- Repeated normalized key: `post:2148899478`
+- Replay audit: **passed**
+- JSON size: **9,590 bytes**
+- JSON SHA-256: `c3d6dc94f2a3720068928ea1712d204f7a68e6891a5baeb297fe2a8799ad5d18`
+
+The extractor starts again from the empty board after constructing the line
+and independently checks every stored position key, absolute side to move,
+legal-move index, chosen action, draw value, child key, alternative count, and
+policy decision. Its final full engine position exactly equals the position at
+ply 32, including side to move and pawn direction state; equality of normalized
+tablebase IDs alone is not treated as a repetition.
+
+The repeating cycle is:
+
+```text
+a1-b3 N@a1 b2-a1 N@c1 a1-b2 b1-a2 b2-a1 c1-b3 N@b1
+a2-b1 N@c1 b1-a2 a1-b2 a2-b1 c1-a2 b1-a2 N@a1 a2-b1
+```
+
+Sixteen positions on the 50-ply lasso offer at least one mover-relative losing
+alternative, with 60 such alternatives in total and as many as 15 at one
+position. The selected action remains drawing at every step.
+
+This lasso is a compact perfect-play illustration, not a standalone proof
+against all deviations. The independently audited complete tablebase remains
+the strong-solution proof; it supplies the full drawing policy by selecting a
+drawing child at every drawn position. See
+[`research/drawing-witness.md`](../../drawing-witness.md) for the precise
+semantics and artifact contract.

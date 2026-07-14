@@ -54,6 +54,13 @@ The underlying design is in
 The probe-to-web boundary is specified in
 [`research/hosted-explorer.md`](research/hosted-explorer.md).
 
+A deterministic draw-preserving policy reaches an exact repeated position
+after a 32-ply prefix and then follows an 18-ply cycle. The replay-audited,
+checksummed witness is committed as
+[`drawing-witness.json`](research/runs/production-2026-07-13/drawing-witness.json),
+with its scope and proof limitations documented in
+[`research/drawing-witness.md`](research/drawing-witness.md).
+
 ## Reproduce
 
 ```sh
@@ -69,8 +76,7 @@ cargo run --manifest-path solver/Cargo.toml --release --bin tablebase_server -- 
 
 ## Roadmap
 
-1. Add human-facing position input and extract a compact drawing-strategy witness from the probe.
-2. Build and host the visual position explorer.
-3. Extract representative optimal lines and strategic findings.
+1. Host the completed visual explorer and production tablebase.
+2. Extract representative decisive lines and strategic findings.
+3. Package the methodology, audits, witness, and artifacts for publication.
 4. Run the alternate returning-pawn interpretation as a sensitivity solve.
-5. Package the methodology and artifacts for publication.
