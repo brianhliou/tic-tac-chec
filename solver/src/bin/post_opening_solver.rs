@@ -3,7 +3,7 @@ use std::path::Path;
 use std::time::Instant;
 
 use tic_tac_chec::graph::PostOpeningGraph;
-use tic_tac_chec::parallel::ParallelState;
+use tic_tac_chec::parallel::{audit_parallel, ParallelState};
 use tic_tac_chec::Rules;
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -21,6 +21,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     match command {
         "init" => initialize(&graph, rules, path, threads),
         "verify" => verify(&graph, rules, path),
+        "audit" => audit(&graph, rules, path, threads),
         "propagate" => {
             let checkpoint_every = argument(&arguments, 4, 5) as u64;
             if checkpoint_every == 0 {
@@ -30,6 +31,40 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
         _ => usage(),
     }
+}
+
+fn audit(
+    graph: &PostOpeningGraph,
+    rules: Rules,
+    path: impl AsRef<Path>,
+    threads: usize,
+) -> Result<(), Box<dyn Error>> {
+    println!("phase = audit");
+    println!("threads = {threads}");
+    let state = ParallelState::load(path, graph, rules.stable_tag())?;
+    if !state.frontier().is_empty() {
+        return Err(format!(
+            "fixpoint not reached: wave {} still has {} frontier states",
+            state.wave(),
+            state.frontier().len()
+        )
+        .into());
+    }
+    let solution = state.finish()?;
+    let start = Instant::now();
+    let stats = audit_parallel(&solution, graph, threads)?;
+    let elapsed = start.elapsed();
+    println!("nodes = {}", stats.nodes);
+    println!("edges = {}", stats.edges);
+    println!("wins = {}", stats.wins);
+    println!("losses = {}", stats.losses);
+    println!("draws = {}", stats.draws);
+    println!("audit_seconds = {:.6}", elapsed.as_secs_f64());
+    println!(
+        "millions_of_edges_per_second = {:.3}",
+        stats.edges as f64 / elapsed.as_secs_f64() / 1_000_000.0
+    );
+    Ok(())
 }
 
 fn verify(
@@ -164,7 +199,7 @@ fn argument(arguments: &[String], index: usize, default: usize) -> usize {
 
 fn usage() -> ! {
     eprintln!(
-        "usage:\n  post_opening_solver init <checkpoint.ctb> [threads] [--pawn=travel|outbound|opponent]\n  post_opening_solver verify <checkpoint.ctb> [--pawn=travel|outbound|opponent]\n  post_opening_solver propagate <checkpoint.ctb> [threads] [checkpoint-every-waves] [--pawn=travel|outbound|opponent]"
+        "usage:\n  post_opening_solver init <checkpoint.ctb> [threads] [--pawn=travel|outbound|opponent]\n  post_opening_solver verify <checkpoint.ctb> [--pawn=travel|outbound|opponent]\n  post_opening_solver propagate <checkpoint.ctb> [threads] [checkpoint-every-waves] [--pawn=travel|outbound|opponent]\n  post_opening_solver audit <checkpoint.ctb> [threads] [--pawn=travel|outbound|opponent]"
     );
     std::process::exit(2)
 }

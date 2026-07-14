@@ -43,6 +43,13 @@ pub struct Solution {
 }
 
 impl Solution {
+    pub fn node_count(&self) -> u32 {
+        self.values
+            .len()
+            .try_into()
+            .expect("dense solution fits u32 node IDs")
+    }
+
     pub fn value(&self, node: u32) -> Value {
         decode(self.values[node as usize])
     }

@@ -5,7 +5,7 @@ use std::path::Path;
 use std::sync::atomic::{AtomicU8, Ordering};
 
 use crate::checkpoint::{self, Checkpoint, CheckpointError};
-use crate::retrograde::{GameGraph, Solution};
+use crate::retrograde::{GameGraph, Solution, Value};
 
 const UNKNOWN: u8 = 0;
 const WIN: u8 = 1;
@@ -39,6 +39,115 @@ pub struct WaveStats {
     pub resolved_wins: u64,
     pub resolved_losses: u64,
     pub output_frontier: u64,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct AuditStats {
+    pub nodes: u64,
+    pub edges: u64,
+    pub wins: u64,
+    pub losses: u64,
+    pub draws: u64,
+}
+
+pub fn audit_parallel(
+    solution: &Solution,
+    graph: &(impl GameGraph + Sync),
+    threads: usize,
+) -> Result<AuditStats, ParallelError> {
+    validate_threads(threads)?;
+    let node_count = graph.node_count();
+    if solution.node_count() != node_count {
+        return Err(ParallelError::NodeCountMismatch {
+            expected: solution.node_count() as u64,
+            actual: node_count as u64,
+        });
+    }
+    if node_count == 0 {
+        return Ok(AuditStats::default());
+    }
+
+    let chunk_size = (node_count as usize).div_ceil(threads);
+    let results = std::thread::scope(|scope| {
+        let mut handles = Vec::new();
+        for first in (0..node_count).step_by(chunk_size) {
+            let end = node_count.min(first.saturating_add(chunk_size as u32));
+            handles.push(scope.spawn(move || audit_chunk(solution, graph, first, end)));
+        }
+        join_results(handles)
+    })?;
+    let mut stats = AuditStats::default();
+    for result in results {
+        stats.nodes += result.nodes;
+        stats.edges += result.edges;
+        stats.wins += result.wins;
+        stats.losses += result.losses;
+        stats.draws += result.draws;
+    }
+    Ok(stats)
+}
+
+fn audit_chunk(
+    solution: &Solution,
+    graph: &impl GameGraph,
+    first: u32,
+    end: u32,
+) -> Result<AuditStats, ParallelError> {
+    let node_count = graph.node_count();
+    let mut stats = AuditStats::default();
+    for node in first..end {
+        let mut degree = 0_u16;
+        let mut has_loss = false;
+        let mut all_win = true;
+        let mut bad_child = None;
+        graph.for_each_successor(node, |child| {
+            if child >= node_count {
+                bad_child = Some(child);
+                return;
+            }
+            degree += 1;
+            match solution.value(child) {
+                Value::Loss => has_loss = true,
+                Value::Win => {}
+                Value::Draw => all_win = false,
+            }
+        });
+        if let Some(child) = bad_child {
+            return Err(ParallelError::EdgeOutOfRange {
+                from: node,
+                to: child,
+            });
+        }
+        let terminal = graph.is_terminal_loss(node);
+        if terminal && degree != 0 {
+            return Err(ParallelError::TerminalHasSuccessors { node, degree });
+        }
+        let expected = if terminal || degree == 0 {
+            Value::Loss
+        } else if has_loss {
+            Value::Win
+        } else if all_win {
+            Value::Loss
+        } else {
+            Value::Draw
+        };
+        let actual = solution.value(node);
+        if actual != expected {
+            return Err(ParallelError::AuditMismatch {
+                node,
+                expected,
+                actual,
+            });
+        }
+        stats.nodes += 1;
+        stats.edges += degree as u64;
+        match actual {
+            Value::Win => stats.wins += 1,
+            Value::Loss => stats.losses += 1,
+            Value::Draw => stats.draws += 1,
+        }
+    }
+    Ok(stats)
 }
 
 impl ParallelState {
@@ -394,14 +503,39 @@ pub enum ParallelError {
     Checkpoint(CheckpointError),
     InvalidThreadCount,
     WorkerPanicked,
-    NodeCountMismatch { expected: u64, actual: u64 },
-    EdgeOutOfRange { from: u32, to: u32 },
-    DegreeOverflow { node: u32, degree: u16 },
-    TerminalHasSuccessors { node: u32, degree: u16 },
-    CounterUnderflow { node: u32 },
-    InvalidFrontierValue { node: u32, value: u8 },
+    NodeCountMismatch {
+        expected: u64,
+        actual: u64,
+    },
+    EdgeOutOfRange {
+        from: u32,
+        to: u32,
+    },
+    DegreeOverflow {
+        node: u32,
+        degree: u16,
+    },
+    TerminalHasSuccessors {
+        node: u32,
+        degree: u16,
+    },
+    CounterUnderflow {
+        node: u32,
+    },
+    InvalidFrontierValue {
+        node: u32,
+        value: u8,
+    },
     DuplicateFrontierNode(u32),
-    FixpointNotReached { wave: u64, frontier: u64 },
+    FixpointNotReached {
+        wave: u64,
+        frontier: u64,
+    },
+    AuditMismatch {
+        node: u32,
+        expected: Value,
+        actual: Value,
+    },
 }
 
 impl fmt::Display for ParallelError {
@@ -493,6 +627,9 @@ mod tests {
                         assert_eq!(solution.value(node), reference.value(node));
                     }
                     solution.audit(&graph).unwrap();
+                    let audit = audit_parallel(&solution, &graph, threads).unwrap();
+                    assert_eq!(audit.nodes, nodes as u64);
+                    assert_eq!(audit.wins + audit.losses + audit.draws, nodes as u64);
                 }
             }
         }
