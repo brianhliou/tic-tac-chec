@@ -24,6 +24,7 @@
   .hlinks a, .navbtn { color:var(--accent); text-decoration:none; font-weight:600; }
   .hlinks a:hover, .navbtn:hover { text-decoration:underline; }
   .navbtn { background:none; border:0; padding:0; cursor:pointer; }
+  .planned-link { color:#a8a29a; font-weight:600; cursor:default; }
 
   .main { flex:1 1 auto; min-height:0; display:flex; gap:24px; align-items:stretch; justify-content:center; }
   .left { flex:0 1 auto; min-width:0; min-height:0; display:flex; align-items:center; justify-content:center; }
@@ -46,32 +47,32 @@
   .ranks,.files { display:grid; color:#91866e; font-size:.7rem; text-align:center; }
   .ranks { grid-template-rows:repeat(4,1fr); align-items:center; }
   .files { grid-template-columns:repeat(4,1fr); grid-column:2; align-items:center; }
-  .board { --board-radius:12px; grid-column:2; display:grid; grid-template-columns:repeat(4,minmax(0,1fr));
+  .board { --board-radius:12px; grid-column:2; position:relative; display:grid; grid-template-columns:repeat(4,minmax(0,1fr));
            grid-template-rows:repeat(4,minmax(0,1fr)); width:100%; aspect-ratio:1; min-width:0; min-height:0;
-           border:0; border-radius:var(--board-radius); overflow:hidden; background:var(--board-frame); gap:0;
+           border:0; border-radius:var(--board-radius); overflow:hidden; overflow:clip; background:transparent; gap:0;
            box-shadow:0 14px 32px rgba(42,34,18,.18); touch-action:none; }
   .square { border:0; border-radius:0; padding:0; position:relative; display:grid; place-items:center;
             width:100%; height:100%; overflow:hidden; background:var(--board); cursor:pointer; min-width:0; min-height:0; }
   .square.alt { background:var(--board2); }
-  .square:nth-child(1) { border-top-left-radius:var(--board-radius); }
-  .square:nth-child(4) { border-top-right-radius:var(--board-radius); }
-  .square:nth-child(13) { border-bottom-left-radius:var(--board-radius); }
-  .square:nth-child(16) { border-bottom-right-radius:var(--board-radius); }
   .square:hover { filter:brightness(1.025); }
   .square.movable { cursor:grab; }
   .square.movable:active { cursor:grabbing; }
   .square.selected { background:var(--select); }
   .square.target::after { content:""; position:absolute; width:18%; aspect-ratio:1; border-radius:50%; background:var(--target); z-index:3; }
-  .square.target.occupied::after { inset:5%; width:auto; aspect-ratio:auto; border:4px solid #2b8a8a; background:none; opacity:.82; }
-  .square.drag-hover::before { content:""; position:absolute; inset:2px; border:4px solid var(--accent); border-radius:5px;
-                               background:rgba(217,138,43,.16); z-index:4; pointer-events:none; }
+  .square.target.occupied::after { inset:2%; width:auto; aspect-ratio:auto; border:7px solid #247f86; background:none; opacity:.94; }
+  .square.target.drag-hover::after { display:none; }
+  .square.drag-hover::before { content:""; position:absolute; inset:0; border:5px solid #b56b18; border-radius:0;
+                               background:rgba(181,107,24,.27); z-index:4; pointer-events:none; }
   .piece { width:100%; height:100%; display:block; position:relative; z-index:2; user-select:none; pointer-events:none; }
   .piece img { width:100%; height:100%; min-width:0; min-height:0; display:block; object-fit:contain; }
   .piece.drag-origin img { opacity:.22; filter:grayscale(1) contrast(.72) drop-shadow(0 2px 1px rgba(0,0,0,.28)); }
   .piece.drag-origin .direction { opacity:.2; }
-  .direction { position:absolute; right:6%; bottom:5%; display:grid; place-items:center; width:22%; aspect-ratio:1;
+  .piece.move-ghost img { opacity:.28; filter:grayscale(1) drop-shadow(0 2px 2px rgba(0,0,0,.26)); }
+  .direction { position:absolute; right:5%; top:5%; display:grid; place-items:center; width:22%; aspect-ratio:1;
                border:1px solid rgba(255,255,255,.9); border-radius:50%; background:rgba(31,35,40,.8); color:#fff;
                font:700 clamp(11px,1.8vh,17px)/1 system-ui; box-shadow:0 1px 3px rgba(0,0,0,.28); }
+  .move-preview { position:absolute; inset:0; width:100%; height:100%; z-index:6; pointer-events:none;
+                  filter:drop-shadow(0 2px 2px rgba(0,0,0,.28)); }
   .drag-piece { position:fixed; left:0; top:0; z-index:100; pointer-events:none; transform:translate(-50%,-50%);
                 filter:drop-shadow(0 8px 7px rgba(0,0,0,.32)); will-change:left,top; }
   .drag-piece img { width:100%; height:100%; display:block; }
@@ -123,8 +124,8 @@
 <body>
 <header class="site-header">
   <h1>Tic Tac Chec, solved</h1>
-  <span class="tagline">A 4×4 alignment game with chess movement — every move ranked.</span>
-  <nav class="hlinks"><button class="navbtn" id="howBtn">How it works</button><a href="https://github.com/brianhliou/tic-tac-chec">GitHub</a><a href="https://brianhliou.com/">Brian Liou</a></nav>
+  <span class="tagline">A 4×4 alignment game with chess movement. Every move ranked.</span>
+  <nav class="hlinks"><button class="navbtn" id="howBtn">How it works</button><span class="planned-link" title="Write-up coming soon">Write-up · soon</span><a href="https://github.com/brianhliou/tic-tac-chec">GitHub</a><a href="https://brianhliou.com/">Brian Liou</a></nav>
 </header>
 <main class="main">
   <section class="left"><div class="boardbox"><div class="tray" id="blackHand"></div><div class="board-frame"><div class="ranks"><span>4</span><span>3</span><span>2</span><span>1</span></div><div class="board" id="board"></div><div class="files"><span>a</span><span>b</span><span>c</span><span>d</span></div></div><div class="tray" id="whiteHand"></div></div></section>
@@ -135,12 +136,12 @@
 const letter={Pawn:'P',Knight:'N',Bishop:'B',Rook:'R'};
 const pieceOrder=['Pawn','Knight','Bishop','Rook'];
 let line=[],cursor=0,data=null,selectedHand=null,selectedSource=null;
-let press=null,drag=null,hoverSquare=null,suppressClick=false;
+let press=null,drag=null,hoverSquare=null,hoverMove=null,suppressClick=false;
 const esc=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pieceImage=(color,piece)=>`<img src="/pieces/cburnett/${color==='White'?'w':'b'}${letter[piece]}.svg" alt="">`;
 const path=()=>line.slice(0,cursor).map(step=>step.index);
 
-async function load(){selectedHand=null;selectedSource=null;document.getElementById('moves').innerHTML='<div class="loading">Probing…</div>';try{const response=await fetch(`/api/probe?path=${path().join(',')}`);const next=await response.json();if(!response.ok)throw new Error(next.error||'Probe failed');data=next;render()}catch(error){document.getElementById('moves').innerHTML=`<div class="error">${esc(error.message)}</div>`}}
+async function load(){selectedHand=null;selectedSource=null;hoverMove=null;document.getElementById('moves').innerHTML='<div class="loading">Probing…</div>';try{const response=await fetch(`/api/probe?path=${path().join(',')}`);const next=await response.json();if(!response.ok)throw new Error(next.error||'Probe failed');data=next;render()}catch(error){document.getElementById('moves').innerHTML=`<div class="error">${esc(error.message)}</div>`}}
 function play(move){line=line.slice(0,cursor);line.push({index:move.index,notation:move.notation});cursor++;load()}
 function outcomeRank(value){return value==='Win'?0:value==='Draw'?1:2}
 function sortedMoves(){return [...data.moves].sort((a,b)=>outcomeRank(a.result)-outcomeRank(b.result)||(a.result==='Loss'?(b.distance||0)-(a.distance||0):(a.distance||0)-(b.distance||0))||a.notation.localeCompare(b.notation))}
@@ -150,7 +151,11 @@ function renderHands(){renderHand('blackHand','Black');renderHand('whiteHand','W
 function renderHand(id,color){const el=document.getElementById(id),active=data.sideToMove===color,pieces=new Set(data.hands[color]);el.className=`tray ${active?'active':''}`;el.innerHTML=`<span class="tray-label">${color} hand</span>${pieceOrder.map(piece=>{const available=pieces.has(piece),selected=available&&selectedHand===piece,origin=drag&&drag.kind==='hand'&&drag.color===color&&drag.piece===piece;return `<button class="hand-piece ${available?'':'ghost'} ${selected?'selected':''} ${origin?'drag-origin':''}" ${available?'':'disabled'} data-piece="${piece}" aria-label="${available?`Place ${color.toLowerCase()} ${piece.toLowerCase()}`:`${color} ${piece.toLowerCase()} is on the board`}">${pieceImage(color,piece)}</button>`}).join('')}`;el.querySelectorAll('.hand-piece:not(.ghost)').forEach(button=>{button.onclick=()=>{if(suppressClick||!active)return;selectedHand=selectedHand===button.dataset.piece?null:button.dataset.piece;selectedSource=null;renderHands();renderBoard()};if(active)button.onpointerdown=event=>beginPress(event,{kind:'hand',color,piece:button.dataset.piece})})}
 function coord(index){return 'abcd'[index%4]+(Math.floor(index/4)+1)}
 function candidateTargets(){const targets=new Set;for(const move of data.moves){if(selectedHand&&move.notation.startsWith(letter[selectedHand]+'@'))targets.add(move.notation.slice(-2));if(selectedSource&&move.notation.startsWith(selectedSource+'-'))targets.add(move.notation.slice(-2))}return targets}
-function renderBoard(){const board=document.getElementById('board'),targets=candidateTargets(),html=[];for(let rank=3;rank>=0;rank--)for(let file=0;file<4;file++){const index=rank*4+file,square=coord(index),piece=data.board[index],movable=piece&&piece.color===data.sideToMove,selected=selectedSource===square,target=targets.has(square),origin=drag&&drag.kind==='board'&&drag.source===square,hover=drag&&hoverSquare===square&&target,label=piece?`${square}: ${piece.color.toLowerCase()} ${piece.piece.toLowerCase()}`:`${square}: empty`;html.push(`<button class="square ${(file+rank)%2?'alt':''} ${movable?'movable':''} ${selected?'selected':''} ${target?'target':''} ${target&&piece?'occupied':''} ${hover?'drag-hover':''}" data-square="${square}" data-index="${index}" aria-label="${label}">${piece?`<span class="piece ${origin?'drag-origin':''}">${pieceImage(piece.color,piece.piece)}${piece.direction?`<span class="direction" title="Pawn travels ${piece.direction}">${piece.direction==='up'?'↑':'↓'}</span>`:''}</span>`:''}</button>`)}board.innerHTML=html.join('');board.querySelectorAll('.square').forEach(button=>{button.onclick=()=>{if(!suppressClick)squareClick(button.dataset.square,Number(button.dataset.index))};const piece=data.board[Number(button.dataset.index)];if(piece&&piece.color===data.sideToMove)button.onpointerdown=event=>beginPress(event,{kind:'board',source:button.dataset.square,piece:piece.piece,color:piece.color,direction:piece.direction})})}
+function notationSquares(notation){return notation.match(/[a-d][1-4]/g)||[]}
+function dropPreview(){if(!hoverMove||!hoverMove.notation.includes('@'))return null;const square=notationSquares(hoverMove.notation)[0],piece=pieceOrder.find(kind=>letter[kind]===hoverMove.notation[0]);return square&&piece?{square,piece}:null}
+function squarePoint(square){return{x:('abcd'.indexOf(square[0])+.5)*100,y:(4.5-Number(square[1]))*100}}
+function arrowPreview(){if(!hoverMove||hoverMove.notation.includes('@'))return '';const squares=notationSquares(hoverMove.notation);if(squares.length!==2)return '';const from=squarePoint(squares[0]),to=squarePoint(squares[1]),dx=to.x-from.x,dy=to.y-from.y,length=Math.hypot(dx,dy),ux=dx/length,uy=dy/length,x1=from.x+ux*24,y1=from.y+uy*24,x2=to.x-ux*28,y2=to.y-uy*28;return `<svg class="move-preview" viewBox="0 0 400 400" aria-hidden="true"><defs><marker id="moveArrow" viewBox="0 0 14 10" refX="12" refY="5" markerWidth="18" markerHeight="14" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0L14 5L0 10Z" fill="#d97818"/></marker></defs><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#d97818" stroke-width="10" stroke-linecap="round" marker-end="url(#moveArrow)" opacity=".92"/></svg>`}
+function renderBoard(){const board=document.getElementById('board'),targets=candidateTargets(),preview=dropPreview(),html=[];for(let rank=3;rank>=0;rank--)for(let file=0;file<4;file++){const index=rank*4+file,square=coord(index),piece=data.board[index],movable=piece&&piece.color===data.sideToMove,selected=selectedSource===square,target=targets.has(square),origin=drag&&drag.kind==='board'&&drag.source===square,hover=drag&&hoverSquare===square&&target,ghost=preview&&preview.square===square,label=piece?`${square}: ${piece.color.toLowerCase()} ${piece.piece.toLowerCase()}`:`${square}: empty`;html.push(`<button class="square ${(file+rank)%2?'alt':''} ${movable?'movable':''} ${selected?'selected':''} ${target?'target':''} ${target&&piece?'occupied':''} ${hover?'drag-hover':''}" data-square="${square}" data-index="${index}" aria-label="${label}">${piece?`<span class="piece ${origin?'drag-origin':''}">${pieceImage(piece.color,piece.piece)}${piece.direction?`<span class="direction" title="Pawn travels ${piece.direction}">${piece.direction==='up'?'↑':'↓'}</span>`:''}</span>`:ghost?`<span class="piece move-ghost">${pieceImage(data.sideToMove,preview.piece)}</span>`:''}</button>`)}board.innerHTML=html.join('')+arrowPreview();board.querySelectorAll('.square').forEach(button=>{button.onclick=()=>{if(!suppressClick)squareClick(button.dataset.square,Number(button.dataset.index))};const piece=data.board[Number(button.dataset.index)];if(piece&&piece.color===data.sideToMove)button.onpointerdown=event=>beginPress(event,{kind:'board',source:button.dataset.square,piece:piece.piece,color:piece.color,direction:piece.direction})})}
 function squareClick(square,index){const target=moveTo(square);if(target){play(target);return}const piece=data.board[index];if(piece&&piece.color===data.sideToMove&&data.moves.some(move=>move.notation.startsWith(square+'-'))){selectedSource=selectedSource===square?null:square;selectedHand=null;renderHands();renderBoard()}else{clearSelection();renderHands();renderBoard()}}
 function moveTo(square){return data.moves.find(move=>selectedHand&&move.notation===letter[selectedHand]+'@'+square)||data.moves.find(move=>selectedSource&&move.notation===selectedSource+'-'+square)}
 function clearSelection(){selectedHand=null;selectedSource=null}
@@ -163,7 +168,7 @@ window.addEventListener('pointermove',event=>{if(!press||event.pointerId!==press
 window.addEventListener('pointerup',event=>{if(!press||event.pointerId!==press.pointerId)return;if(press.moved)finishDrag(event);else press=null});
 window.addEventListener('pointercancel',()=>{if(drag&&drag.preview)drag.preview.remove();press=null;drag=null;hoverSquare=null;clearSelection();if(data){renderHands();renderBoard()}});
 function renderHistory(){const el=document.getElementById('history');if(!line.length){el.innerHTML='<div class="empty-line">No moves yet</div>';return}let html='';for(let i=0;i<line.length;i+=2){html+=`<div class="lrow"><span class="lnum">${i/2+1}.</span>${[i,i+1].map(ply=>ply<line.length?`<button class="ply ${cursor===ply+1?'cur':''}" data-cursor="${ply+1}">${esc(line[ply].notation)}</button>`:'<span></span>').join('')}</div>`}el.innerHTML=html;el.querySelectorAll('.ply').forEach(button=>button.onclick=()=>{cursor=Number(button.dataset.cursor);load()})}
-function renderMoves(){const el=document.getElementById('moves'),moves=sortedMoves();if(!moves.length){el.innerHTML='<div class="loading">Terminal position</div>';return}let html='',group=null;for(const move of moves){if(move.result!==group){group=move.result;html+=`<div class="grouphdr ${group}">${group==='Win'?'Winning':group==='Draw'?'Drawing':'Losing'} moves</div>`}const score=move.distance==null?'draw':`${move.result.toLowerCase()} in ${move.distance}`;html+=`<button class="move" data-index="${move.index}"><span class="mv">${esc(move.notation)}</span><span class="badge ${move.result}">${score}</span></button>`}el.innerHTML=html;el.querySelectorAll('.move').forEach(button=>button.onclick=()=>play(data.moves.find(move=>move.index===Number(button.dataset.index))))}
+function renderMoves(){const el=document.getElementById('moves'),moves=sortedMoves();if(!moves.length){el.innerHTML='<div class="loading">Terminal position</div>';return}let html='',group=null;for(const move of moves){if(move.result!==group){group=move.result;html+=`<div class="grouphdr ${group}">${group==='Win'?'Winning':group==='Draw'?'Drawing':'Losing'} moves</div>`}const score=move.distance==null?'draw':`${move.result.toLowerCase()} in ${move.distance}`;html+=`<button class="move" data-index="${move.index}"><span class="mv">${esc(move.notation)}</span><span class="badge ${move.result}">${score}</span></button>`}el.innerHTML=html;el.querySelectorAll('.move').forEach(button=>{const move=data.moves.find(candidate=>candidate.index===Number(button.dataset.index)),show=()=>{hoverMove=move;renderBoard()},hide=()=>{if(hoverMove===move){hoverMove=null;renderBoard()}};button.onclick=()=>play(move);button.onmouseenter=show;button.onmouseleave=hide;button.onfocus=show;button.onblur=hide})}
 document.getElementById('reset').onclick=()=>{line=[];cursor=0;load()};document.getElementById('back').onclick=()=>{if(cursor){cursor--;load()}};document.getElementById('fwd').onclick=()=>{if(cursor<line.length){cursor++;load()}};
 const modal=document.getElementById('howModal');document.getElementById('howBtn').onclick=()=>modal.hidden=false;document.getElementById('howClose').onclick=()=>modal.hidden=true;modal.onclick=event=>{if(event.target===modal)modal.hidden=true};document.addEventListener('keydown',event=>{if(event.key==='Escape')modal.hidden=true});load();
 </script>
