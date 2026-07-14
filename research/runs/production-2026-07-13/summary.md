@@ -106,11 +106,64 @@ applied every action through checked play, and verified the direct minimax
 equation for every opening state. Its layer statistics matched the production
 pass exactly.
 
-## Status
+## W/L/D milestone
 
 The canonical original-edition game is a draw under perfect play. The result
 is a strong W/L/D solution: the normalized post-opening table is complete,
 checksummed, reloadable, and fully audited, and the complete forced-placement
 opening has independently replayed values back to the initial empty board.
-Remoteness and a compact human-readable drawing strategy have not yet been
-computed.
+The following enrichment phase adds decisive remoteness; a compact
+human-readable drawing strategy remains future work.
+
+## Remoteness-enriched tablebase
+
+- Enrichment source commit: `3fa92443b5c625dca0f0406a941cdcef37cd376d`
+- Verification source commit: `b6f162b4e3f5ee5f67ac61af7bd3a31e6ebf79cb`
+- Command: `cargo run --manifest-path solver/Cargo.toml --release --bin post_opening_solver -- enrich research/runs/production-2026-07-13/post-opening-travel.ctb research/runs/production-2026-07-13/post-opening-travel.tb 16`
+- Threads: 16
+- Checkpoint load: **14.505301 seconds**
+- Nonterminal-loss edges initialized: **76,499,658**
+- Remoteness propagation: **84.448156 seconds**
+- Maximum post-opening remoteness: **41 plies**
+- Decisive states audited: **209,074,518**
+- Decisive successor edges audited: **2,192,239,958**
+- Independent distance-equation audit: **40.134301 seconds**
+- Opening W/L/D plus remoteness pass: **6.402754 seconds**
+- Independent checked-play opening audit: **8.596755 seconds**
+
+The distance convention is terminal loss at zero, win at one plus the minimum
+distance of a losing child, and nonterminal loss at one plus the maximum
+distance of a winning child. Draws have no finite remoteness. The forward audit
+regenerated decisive successors and checked this equation at every decisive
+post-opening state; it does not use the generated predecessors or propagation
+counters.
+
+Opening maximum remoteness is **39 plies** overall: ply 5 reaches 39, ply 4
+reaches 25, and plies 0–3 contain only draws. Across all locked-opening layers,
+the artifact contains 147,472 wins, 30,468 losses, and 14,058,925 draws.
+
+## Result-plus-distance artifact
+
+- File: `post-opening-travel.tb` (intentionally ignored by Git)
+- Format: `TTCTB001`, version 1
+- Rules tag: `0x54544303`
+- Post-opening bytes: **2,462,360,745**
+- Opening bytes: **14,236,865**
+- Total file size: **2,476,597,658 bytes**
+- CRC-64/XZ: `0xeb952765179a695e`
+- SHA-256: `f6644e7d35cd9653e1c4bb33b2e4221afd27567385c0ec1f7b71c84e65c8f045`
+- Atomic artifact write: **7.165775 seconds**
+- Full reload, CRC verification, code validation, and census: **9.340936 seconds**
+- Verification command: `cargo run --manifest-path solver/Cargo.toml --release --bin post_opening_solver -- verify-tablebase research/runs/production-2026-07-13/post-opening-travel.tb`
+
+Each position uses one byte. Codes 0–253 are finite remoteness in plies, with
+even parity denoting a loss and odd parity a win; 254 is reserved and rejected;
+255 denotes a draw. Moves and edges are generated on demand and are not stored
+in the artifact.
+
+## Updated status
+
+The canonical W/L/D result and decisive remoteness are now complete and
+audited, and a checksummed probe-ready artifact exists. The remaining product
+work is a position parser/editor, move-by-move tablebase probe, deterministic
+optimal policy, hosted explorer, and human-readable strategy analysis.

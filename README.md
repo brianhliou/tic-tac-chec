@@ -8,6 +8,8 @@ normalized post-opening W/L/D table and all six placement-only opening plies
 were solved and independently audited on 2026-07-13. Exact counts, timings,
 checkpoint checksum, and reproduction commands are in
 [`research/runs/production-2026-07-13/summary.md`](research/runs/production-2026-07-13/summary.md).
+Decisive positions now also carry audited optimal remoteness, with a maximum of
+41 plies, in a checksummed one-byte-per-state artifact.
 
 ## Solve target
 
@@ -58,11 +60,13 @@ cargo run --manifest-path solver/Cargo.toml --bin state-space
 cargo run --manifest-path solver/Cargo.toml --release --bin rank_bench -- 10000000
 cargo run --manifest-path solver/Cargo.toml --release --bin post_opening_solver -- verify research/runs/production-2026-07-13/post-opening-travel.ctb
 cargo run --manifest-path solver/Cargo.toml --release --bin post_opening_solver -- opening research/runs/production-2026-07-13/post-opening-travel.ctb 16
+cargo run --manifest-path solver/Cargo.toml --release --bin post_opening_solver -- verify-tablebase research/runs/production-2026-07-13/post-opening-travel.tb
 ```
 
 ## Roadmap
 
 1. Add a tablebase probe and extract a compact drawing-strategy witness.
-2. Compute win/loss remoteness and representative optimal lines.
-3. Run the alternate returning-pawn interpretation as a sensitivity solve.
-4. Package the methodology and artifacts for publication.
+2. Build and host the visual position explorer.
+3. Extract representative optimal lines and strategic findings.
+4. Run the alternate returning-pawn interpretation as a sensitivity solve.
+5. Package the methodology and artifacts for publication.
