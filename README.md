@@ -127,7 +127,10 @@ under GPL-3.0-or-later; see the [piece credits](solver/web/pieces/CREDITS.md) an
 
 ## Roadmap
 
-1. Send the prepared publisher inquiry and preserve any response in the rules
-   ledger.
-2. Package the methodology, audits, witness, and strategic report for publication.
-3. Obtain a designer/publisher pawn ruling and transcribe the complete 2025 rules.
+1. The publisher inquiry was sent to Wood Expressions on 2026-07-14. If there
+   is no response, follow up once between 2026-07-23 and 2026-07-28.
+2. Preserve any publisher or designer response verbatim in the rules ledger,
+   then transcribe the complete 2025 rules into an implementation-ready spec.
+3. Solve the 2025 Bobby Fischer edition as a separately named ruleset and add
+   it to the explorer and write-up without changing the scope of the original
+   1998 result.
