@@ -313,7 +313,8 @@ fn parse_path(target: &str) -> Result<Vec<usize>, String> {
     if encoded.is_empty() {
         return Ok(Vec::new());
     }
-    let path: Vec<_> = encoded
+    let decoded = decode_query_component(encoded)?;
+    let path: Vec<_> = decoded
         .split(',')
         .map(|index| {
             index
@@ -325,6 +326,39 @@ fn parse_path(target: &str) -> Result<Vec<usize>, String> {
         return Err(format!("path may contain at most {MAX_PATH_PLIES} plies"));
     }
     Ok(path)
+}
+
+fn decode_query_component(encoded: &str) -> Result<String, String> {
+    let bytes = encoded.as_bytes();
+    let mut decoded = Vec::with_capacity(bytes.len());
+    let mut index = 0;
+    while index < bytes.len() {
+        match bytes[index] {
+            b'%' => {
+                let high = bytes.get(index + 1).and_then(|byte| hex_value(*byte));
+                let low = bytes.get(index + 2).and_then(|byte| hex_value(*byte));
+                let (Some(high), Some(low)) = (high, low) else {
+                    return Err("path contains invalid percent encoding".to_owned());
+                };
+                decoded.push((high << 4) | low);
+                index += 3;
+            }
+            byte => {
+                decoded.push(byte);
+                index += 1;
+            }
+        }
+    }
+    String::from_utf8(decoded).map_err(|_| "path must be valid UTF-8".to_owned())
+}
+
+fn hex_value(byte: u8) -> Option<u8> {
+    match byte {
+        b'0'..=b'9' => Some(byte - b'0'),
+        b'a'..=b'f' => Some(byte - b'a' + 10),
+        b'A'..=b'F' => Some(byte - b'A' + 10),
+        _ => None,
+    }
 }
 
 fn replay(path: &[usize], rules: Rules) -> Result<(Position, Vec<Move>), String> {
@@ -538,12 +572,25 @@ mod tests {
     use super::*;
 
     #[test]
-    fn path_parser_handles_empty_and_multiple_plies() {
+    fn path_parser_handles_empty_single_and_multiple_plies() {
         assert_eq!(parse_path("/api/probe").unwrap(), Vec::<usize>::new());
         assert_eq!(parse_path("/api/probe?path=").unwrap(), Vec::<usize>::new());
+        assert_eq!(parse_path("/api/probe?path=42").unwrap(), vec![42]);
         assert_eq!(
             parse_path("/api/probe?path=0,17,4").unwrap(),
             vec![0, 17, 4]
+        );
+        assert_eq!(
+            parse_path("/api/probe?path=0%2C17%2c4").unwrap(),
+            vec![0, 17, 4]
+        );
+    }
+
+    #[test]
+    fn path_parser_rejects_invalid_percent_encoding() {
+        assert_eq!(
+            parse_path("/api/probe?path=0%2").unwrap_err(),
+            "path contains invalid percent encoding"
         );
     }
 
