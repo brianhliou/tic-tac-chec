@@ -10,6 +10,7 @@ pub mod ranking;
 pub mod remoteness;
 pub mod retrograde;
 pub mod tablebase;
+pub mod threat;
 
 pub const BOARD_SIDE: u8 = 4;
 pub const BOARD_CELLS: usize = 16;
@@ -295,6 +296,14 @@ impl Position {
         }
 
         Ok(self.play_unchecked(action))
+    }
+
+    /// Apply an action already emitted by a legal-move visitor.
+    ///
+    /// This avoids regenerating the move list in graph-analysis tools. Callers
+    /// must only pass an action produced for this exact position and ruleset.
+    pub fn play_generated(&self, action: Move) -> Self {
+        self.play_unchecked(action)
     }
 
     pub(crate) fn play_unchecked(&self, action: Move) -> Self {
